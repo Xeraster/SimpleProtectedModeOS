@@ -1,5 +1,3 @@
-//visual studio code is absolutely having a cow over this template business but it compiles so idgaf
-
 template <typename T>
 dynarray<T> :: dynarray()
 {
@@ -7,6 +5,7 @@ dynarray<T> :: dynarray()
     count = 0;
     maxSize = 10;
     m_isMemoryTable = false;
+    m_init = true;
     return;
 }
 
@@ -20,6 +19,7 @@ dynarray<T> :: dynarray(unsigned int manual_allocation)
     count = 0;
     maxSize = 10;
     m_isMemoryTable = true;
+    m_init = true;
     return;
 }
 
@@ -41,11 +41,14 @@ void dynarray<T> :: manual_resize(unsigned int newMaxSize, void* newArrayAddress
 template <typename T>
 void dynarray<T> :: push_back(T item, bool normalOperation)
 {
+    *(char*)0xB803A = 'B';
+	*(char*)0xB803B = 0x0E;
     //if count is less than max size, just simply apply the data to the highest position and call it a day
     //if it's the memory allocator, it needs to resize 2 spaces before it gets empty since the process of resizing itself takes 2 additional spaces
     if (count + 3 >= maxSize && m_isMemoryTable && normalOperation)
     {
         realloc(this, maxSize + 10);
+        //realloc(array, maxSize + 10);
         //resize(maxSize + 10);
         //array[count] = item;
         //count++;
@@ -53,6 +56,21 @@ void dynarray<T> :: push_back(T item, bool normalOperation)
         //remember to apply the new data or it will get desynced
         array[count] = item;
         count++;
+    }
+    //I finally figured out how to get automatic variable deletion to work
+    else if (!m_init)
+    {
+        //if not initialized, do so
+        array = (T*)calloc(10, sizeof(T));
+        count = 0;
+        maxSize = 10;
+        m_isMemoryTable = false;
+        m_init = true;
+
+        //then don't forget to finish adding the pending data
+        array[count] = item;
+        count++;
+
     }
     else if (count < maxSize)
     {
@@ -121,6 +139,11 @@ void dynarray<T> :: clear()
 {
     //I mean, right? Am I missing something or is this all there is to it?
     count = 0;
+    //free(array);
+    //m_init = false;
+    //maxSize = 0;
+    *(char*)0xB8040 = 'L';
+	*(char*)0xB8041 = 0x0C;
     resize(10);
 }
 
@@ -129,12 +152,31 @@ template <typename T>
 void dynarray<T> :: resize(unsigned int newSize)
 {
     maxSize = newSize;
+    *(char*)0xB8042 = 'R';
+	*(char*)0xB8043 = 0x0D;
     unsigned int newSizeInBytes = sizeof(T)*maxSize;
-    void* oldPtr = array;
-    array = (T*)realloc(array, newSizeInBytes);
+    *(char*)0xB8044 = 'R';
+	*(char*)0xB8045 = 0x0D;
+    void* oldPtr = (void*)array;
+    *(char*)0xB8046 = 'R';
+	*(char*)0xB8047 = 0x0D;
+    array = (T*)realloc(oldPtr, newSizeInBytes);
+    *(char*)0xB8048 = 'R';
+	*(char*)0xB8049 = 0x0D;
     
     //don't forget to delete the old array
-    free(oldPtr);
+    //theoretically, this oldPtr should never be equal to this array. I however can't seem to prevent it from happening so I might as well define the correct behavior for when it does happen
+    if (oldPtr != array) free(oldPtr);
+    *(char*)0xB804A = 'R';
+	*(char*)0xB804B = 0x0D;
+
+    //adjust count. 
+    if (count >= maxSize)
+    {
+        count = maxSize - 1;
+    }
+    *(char*)0xB804C = 'R';
+	*(char*)0xB804D = 0x0E;
 
     return;
 }
@@ -159,7 +201,7 @@ template <typename T>
 T& dynarray<T> :: back()
 {
     if (count > 0) return array[count-1];
-    else return *(T*)nullptr;
+    else return *(T*)0;//changed from nullptr to zero
 }
 
 template <typename T>

@@ -21,11 +21,19 @@ int testIfReturnTypesWork(int num1, int num2);
 
 void setCharEqual(char *target, unsigned int *poop);
 
-//prints the memory address of all occurances of the word "fuck" in the given memory range 
+//prints the memory address of all occurances of the word "fooo" in the given memory range 
 void findFooo(unsigned int memStart, unsigned int length, int curPos);
 
-// OK: literal operators can be overloaded
-char* operator ""_Z(const char* args, size_t csize);
+//shifts the cursor to the left or right. Positive values shift right. Negative values shift left.
+void shiftCursor(int howFar);
+
+//performs the equivalent of backspace on textmode 7 or 3 or whatever the default one is
+void backspaceScreen();
+
+void printMemoryAllocation();
+
+//i'm, sick and tired of pasting that one snippet of code over and over to calculate x y values from videoStart. Here's a function to do that
+void cursorAdrToInts(int *x, int *y);
 
 #include "utilities.cpp"
 

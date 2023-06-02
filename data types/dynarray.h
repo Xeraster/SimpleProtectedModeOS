@@ -1,8 +1,9 @@
 #ifndef DYNARRAY_H
 #define DYNARRAY_H
+//do not touch with any of this without testing it EXTREMELY well...
 
-//basically a vector, just a shittier one that works with my shittier memory allocation system
-//apparently a lot lighter on memory than the og vector class
+//basically a vector, just a worse one that works with my memory allocation system
+//probably lighter on memory than the og vector class
 //you need dynamic memory allocation in your kernel before you can make dynamic data containers. But you need at least some kind of dynamic data container before you can get dynamic memory allocation. REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 template <typename T>
 class dynarray
@@ -15,7 +16,21 @@ public:
     dynarray(unsigned int manual_allocation);
 
     //deletion operator
-    //~dynarray();
+    ~dynarray()
+    {
+        count = 0;
+        maxSize = 0;
+        free(array);
+    }
+
+    //for when g++/ld is being stupid (this stopped being relevant once I figured out how to get the linker to work the way I needed it to)
+    void manual_delete()
+    {
+        count = 0;
+        maxSize = 0;
+        free(array);
+        return;
+    }
 
     //used by realloc when attempting to realloc the memory allocation table dynarrays
     void manual_resize(unsigned int newMaxSize, void* newArrayAddress);
@@ -54,27 +69,33 @@ public:
     bool find(T thingToFind, unsigned int* index);
 
     unsigned int getSize() const { return count; }
+    unsigned int getSize_noconst() { return count; }    //in certain situations, returning a const value here crashes the program when running on physical systems but not on emulators
     unsigned int max_size() const { return maxSize; }
     T* getAddress() const { return array; }
+    bool is_init() const { return m_init; }
 
     bool is_memory_table() const { return m_isMemoryTable; }
 
     //returns point to element at position
     T& at(unsigned int index) const { return array[index]; }
+    T& at_noconst(int index) { return array[index]; }
 
     dynarray<T>& operator=(const dynarray<T>& other)
     {
+        free(array);
         count = other.getSize();
         array = other.getAddress();
         maxSize = other.max_size();
         m_isMemoryTable = other.is_memory_table();
+        m_init = other.is_init();
 
         return *this;
     }
-private:
     unsigned int count;
+private:
     unsigned int maxSize;
     bool m_isMemoryTable;
+    bool m_init;
     T *array;
 
     //gets the size of object in memory

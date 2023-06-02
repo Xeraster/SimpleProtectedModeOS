@@ -2,13 +2,13 @@
 void memoryTest(bool printToScreen, unsigned int startAddress, unsigned int kbToTest)
 {
 	bool success = true;
-	u_int8_t* currentAddress = (u_int8_t*)startAddress;
+	char* currentAddress = (char*)startAddress;
 	//print32bitNumber(startAddress, 100);
 	while (success && ((unsigned int)currentAddress - (unsigned int)startAddress)/1000 < kbToTest)
 	{
 		//first, set the address to zero then check if it's zero when read
 		*currentAddress = 0x00;
-		u_int8_t read = *(u_int8_t*)currentAddress;
+		char read = *(char*)currentAddress;
 		if (read != 0x00)
 		{
 			success = false;
@@ -16,7 +16,7 @@ void memoryTest(bool printToScreen, unsigned int startAddress, unsigned int kbTo
 
 		//next, set the address to 255 then check to see if it changed to 255
 		*currentAddress = 0xFF;
-		read = *(u_int8_t*)currentAddress;
+		read = *(char*)currentAddress;
 		if (read != 0xFF)
 		{
 			success = false;
@@ -150,7 +150,7 @@ void setCharEqual(char *target, unsigned int *poop)
 	return;
 }
 
-//prints the memory address of all occurances of the word "fuck" in the given memory range 
+//prints the memory address of all occurances of the word "fooo" in the given memory range 
 void findFooo(unsigned int memStart, unsigned int length, int curPos)
 {
 	unsigned int foosFound = 0;
@@ -168,28 +168,86 @@ void findFooo(unsigned int memStart, unsigned int length, int curPos)
 	return;
 }
 
-// OK: literal operators can be overloaded
-//doesnt solve the string issue though
-char* operator ""_Z(const char* args, size_t csize)
+//shifts the cursor to the left or right. Positive values shift right. Negative values shift left.
+void shiftCursor(int howFar)
 {
-	//void* ptr = calloc()
-	//char currentChar = *(char*)args;
-	int size = csize;
-	/*while (currentChar != 0)
-	{
-		size++;
-		currentChar = args[size];
-	}*/
-	void* ptr = calloc(size, sizeof(char));
+	videoStart+=(howFar*2);
+	setVGAtextModeCursor(3);
 
-	char currentChar = *(char*)args;
-	int i = 0;
-	while (i < size)
+	return;
+}
+
+//performs the equivalent of backspace on textmode 7 or 3 or whatever the default one is
+void backspaceScreen()
+{
+	//shift cursor back 1
+	shiftCursor(-1);
+
+	//replace this spot with a blank space
+	printChar(' ', 0x0F);
+
+	//go back one to simulate the back spacing type effect
+	shiftCursor(-1);
+
+	//now shift everything to the right of the cursor position and on this line only to the left once
+	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
+	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
+
+	char *rowAdr = (char*)(0xB8000 + ((Y * 80))*2);
+	for(int i = (X*2); i < 160; i++)
 	{
-		*(char*)(ptr+i) = args[i];
-		i++;
+		*(rowAdr + i) = *(char*)(rowAdr + i + 2);
 	}
 
-	return (char*)ptr;
 
+
+	return;
+}
+
+void printMemoryAllocation()
+{
+	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
+	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
+
+	unsigned int usedMemory = 0;
+	for (int i = 0; i < memf.getSize(); i++)
+	{
+		//usedMemory += getSizeOfMemBlock((void*)memf.at(i), nullptr);
+		usedMemory += getSizeOfMemBlock((void*)memf.at(i), 0);
+	}
+
+	print32bitNumber(usedMemory, X+(Y*80));
+	printCharArray(" bytes", 0x0F, X+(Y*80)+10);
+
+	Y++;
+
+	//first, completely erase anything that would be behind this
+	for (int i = 0; i < memf.getSize(); i++)
+	{
+		//print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), nullptr), X-6+((i+Y)*80));
+		printCharArray("                  ", 0x0E, X-6+((i+Y)*80));
+	}
+
+	for (int i = 0; i < memf.getSize(); i++)
+	{
+		//print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), nullptr), X-6+((i+Y)*80));
+		print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), 0), X-6+((i+Y)*80));
+		print32bitNumber((unsigned int)memf.at(i), X+((i+Y)*80));
+		print32bitNumber((unsigned int)memb.at(i), X+11+((i+Y)*80));
+		printCharAdr('-',0x0F, X+10+((i+Y)*80));
+	}
+
+	return;
+}
+
+//i'm, sick and tired of pasting that one snippet of code over and over to calculate x y values from videoStart. Here's a function to do that
+void cursorAdrToInts(int *x, int *y)
+{
+	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
+	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
+
+	*x = X;
+	*y = Y;
+
+	return;
 }

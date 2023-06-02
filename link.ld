@@ -1,27 +1,32 @@
-OUTPUT_FORMAT("elf32-i386")
-ENTRY(begin)
+OUTPUT_FORMAT("binary")
 SECTIONS
 {
-    . = 0x7e00;
-
-    .text BLOCK(8K) : ALIGN(4K)
+    . = 0x7c00;
+    
+    .text : ALIGN(1K)
     {
-        *(.text)
+        bootloader.o(.text)
+        *(.text .text.*)
     }
 
-    .rodata BLOCK(4K) : ALIGN(4K)
+    .rodata : ALIGN(4K)
     {
-        *(.rodata)
+        *(.rodata .rodata.*)
     }
 
-    .data BLOCK(4K) : ALIGN(4K)
+    .data : ALIGN(4K)
     {
-        *(.data)
+        *(.data .data.*)
     }
 
-    .bss BLOCK(4K) : ALIGN(4K)
+    .bss : ALIGN(4K)
     {
-        *(.bss)
+        *(.bss .bss.*)
+    }
+
+    .auxFunctions : ALIGN(1K)
+    {
+        
     }
 
     end = .;
