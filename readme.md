@@ -1,5 +1,5 @@
-to build, use "sh ./buildScript.sh"
+to build, use "cross-buildLinkScript.sh"
 
-there is also buildLinkScript.sh which is an attempt at building it using a linker but I haven't been able to make that work. There is also a link script link.ld. It doesn't work though.
+You can substitute "g++" for the path to your g++ cross compiler if you want but for me it runs the same way regardless
 
-If you think you know of a way to actually make this work using a link script, I would love to see what it is.
+Works well on bochs or qemu without errors. Does no work on real hardware
