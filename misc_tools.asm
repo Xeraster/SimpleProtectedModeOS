@@ -1,4 +1,3 @@
-;dumbass shit that can't be done in c++ for one reason or another
 ;all this stuff is in 32bit assembly so don't put any real mode specific stuff in here
 [BITS 32]
 [CPU 486]
