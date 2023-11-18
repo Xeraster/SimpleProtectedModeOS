@@ -68,8 +68,8 @@ char waitChar()
         *(char *)0xB8936 = 'W';
         *(char*)0xB8937 = 0x0E;//yellow
         //once the keyboard is ready, read a byte from the data port
-        kdbData = asmInb(0x60);
         //kdbData = asmInb(0x60);
+        kdbData = inb(0x60);
         *(char *)0xB8936 = 'W';
         *(char*)0xB8937 = 0x02;//green
 
@@ -85,8 +85,8 @@ char waitChar()
         //keyboardWaitReadReady();
         //forceIOPL_High();
         //kbd8042WaitReadReady(); //use this instead maybe it will work on physical pcs and not just emulators
-        //kdbData = inb(0x60);
-        kdbData = asmInb(0x60);
+        //kdbData = inb(0x60);//this fucks everything up dont do it
+        //kdbData = asmInb(0x60);
         
         *(char*)0xB8938 = 'D';
 		*(char*)0xB8939 = 0x0D;
@@ -94,10 +94,10 @@ char waitChar()
         
         //for some reaon I'm not getting the E0 code
         //i dont remember what this does but 06/02/23 i changed it to unsigned int because i486 g++ likes it when you do that 
-        if ((unsigned int)kdbData == 0xE0)
+        if (kdbData == 0xE0)
         {
             lastCodeE0 = true;
-            print8bitNumber(kdbData, 1803);
+            //print8bitNumber(kdbData, 1803);
         }
         else lastCodeE0 = false;
 
@@ -159,7 +159,7 @@ bool manageSpecialKeyboardFunctions(char function, bool lastKeyAlt)
     else if (function == 0x0E)
     {
         backspaceScreen();
-        return true;
+        return false;
     }
 
     //delete key
@@ -203,7 +203,7 @@ void setupScancodeMap()
     scancodesXT_lowercase+="1234567890-=";
     *(char*)0xB801C = 'K';
 	*(char*)0xB801D = 0x0E;
-    scancodesXT_lowercase+="*";//backspace
+    scancodesXT_lowercase+=0x08;//backspace
     scancodesXT_lowercase+="*";//tab
     scancodesXT_lowercase+="qwertyuiop[]";
     scancodesXT_lowercase+=char(10);//enter key
@@ -226,30 +226,44 @@ void setupScancodeMap()
     scancodesXT_lowercase+="**";//F11 and F12
     //that's it for the non E0 scancodes
 
-    *(char*)0xB8020 = 'K';
+    *(char*)0xB8020 = 'r';
 	*(char*)0xB8021 = 0x0E;
 
     //now for the upper case
     scancodesXT_uppercase="**";//escape key
     scancodesXT_uppercase+="!@#$%^&*()_+";
-    scancodesXT_uppercase+="*";//backspace
+    scancodesXT_uppercase+=0x08;//backspace
     scancodesXT_uppercase+="*";//tab
+    *(char*)0xB8022 = 'A';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="QWERTYUIOP{}";
     scancodesXT_uppercase+=char(10);//enter key
     scancodesXT_uppercase+="*";//L CTRL key
     scancodesXT_uppercase+="ASDFGHJKL:\"~";
+    *(char*)0xB8022 = '2';
+	*(char*)0xB8023 = 0x0E;
+    *(char*)0xB8022 = 'B';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="*";//L SHIFT
     scancodesXT_uppercase+=char(92);
     scancodesXT_uppercase+="ZXCVBNM<>?";
     scancodesXT_uppercase+="*";//R SHIFT
+    *(char*)0xB8022 = 'C';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="*";//KP *
     scancodesXT_uppercase+="*";//L ALT
     scancodesXT_uppercase+=" ";//space
+    *(char*)0xB8022 = 'D';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="*";//CAPS
     scancodesXT_uppercase+="**********";//F1-F10
     scancodesXT_uppercase+="*";//num lock
+    *(char*)0xB8022 = 'E';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="*";//scroll lock
     scancodesXT_uppercase+="789-456+1230.";//scroll lock
+    *(char*)0xB8022 = 'F';
+	*(char*)0xB8023 = 0x0E;
     scancodesXT_uppercase+="**";//F11 and F12
     //that's it for the non E0 scancodes
 
@@ -264,13 +278,18 @@ void setKeyboardLeds(bool caps, bool num, bool scroll)
 {
     char lightByte = 0x00;
     //if caps lock should be enabled, set bit 2
-    if (caps) lightByte|4;
+    if (caps) lightByte = lightByte|4;
+    else lightByte = lightByte & 251;
 
     //if num lock should be enabled, set bit 1
-    if (num) lightByte|2;
+    if (num) lightByte = lightByte|2;
+    else lightByte = lightByte & 253;
 
     //if scroll lock should be enabled, set bit 0
-    if (scroll) lightByte|1;
+    if (scroll) lightByte = lightByte|1;
+    else lightByte = lightByte & 254;
+
+    //printInt(lightByte, 0x0E, true);
 
     //wait for keyboard to be ready for a write
     keyboardWaitWriteReady();
@@ -278,14 +297,14 @@ void setKeyboardLeds(bool caps, bool num, bool scroll)
 
     //send command 0xED to indicate the next data byte is going to be for the keyboard status lights
     //forceIOPL_High();
-    asmOutb(0xED, 0x60);
+    outb(0xED, 0x60);
 
     //wait for keyboard to be ready for another write
     keyboardWaitWriteReady();
     //kbd8042WaitWriteReady();
 
     //send the byte
-    asmOutb(lightByte, 0x60);
+    outb(lightByte, 0x60);
 
     //done
 

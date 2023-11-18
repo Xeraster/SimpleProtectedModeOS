@@ -9,19 +9,11 @@ void *malloc(unsigned int size)
     return calloc(1, size);
 }
 
-void *alloca(unsigned int size)
+void *alloca(unsigned int num_items, unsigned int size)
 {
     //lol jk it actually does write zeros to newly allocated memory
-    return calloc(1, size);
-}
 
-/*allocates memory in a dynamic way
-writes zeros to allocated memory
-size = size of memory to allocate in bytes
-returned pointer is the start (lower bounds) of the allocated memory location
-*/
-void* calloc(unsigned int num_items, unsigned int size)
-{
+    return calloc(num_items, size, 0);      //just do this for now to keep things simpler. it's what worked in my other one
     void* pointer;
     unsigned int start = 0;
     unsigned int end = 0;
@@ -31,7 +23,7 @@ void* calloc(unsigned int num_items, unsigned int size)
 
     //if memory table is completely empty, nothing can conflict with it. Place at beginning of table and call it a day
     //changed to a nonconst to see if that makes it not crash on non-emulator systems but it doesn't, at least not here
-    if (memf.getSize_noconst() == 0)
+    if (memf.getSize() == 0)
     {
         start = programHeapStart;
         end = programHeapStart + (size*num_items);
@@ -82,7 +74,7 @@ void* calloc(unsigned int num_items, unsigned int size)
 
         *(char*)0xB8060 = 'c';
         *(char*)0xB8061 = 0x0C;
-            //no conflict? great. Continue with the previously calculated values
+        //no conflict? great. Continue with the previously calculated values
 
     }
 
@@ -90,13 +82,127 @@ void* calloc(unsigned int num_items, unsigned int size)
     *(char*)0xB8063 = 0x0C;
 
     //write zeros to all the stuff in the memory block
+    for (unsigned int m = start; m < end; m++)
+    //for(int m = 0; m < (size*(num_items-1)); m++)
+    //for(int m = 0; m < end - start; m++)
+    {
+        //commenting this out STILL solves bugs which isn't good. Something is wrong but I still haven't ben able to figure out what. 
+        //*(char*)(m) = 0;
+
+        //oof, glad I caught this bug before things started getting too complicated. We don't erase stuff beyond end. Only start. start-end needs to be cleared
+        //*(unsigned int*)(end+m) = 0;
+
+        //fuck it. print the addresses that its trying to erase
+        //if (start == commandBufferAddress)
+        //{
+        //    print32bitNumber(start+m,80*(m)+40);
+        //}
+    }
+
+    *(char*)0xB8064 = 'c';
+    *(char*)0xB8065 = 0x0C;
+
+    //put the addresses into the memory allocation tables
+    memf.push_back(start, false);
+    memb.push_back(end, false);
+
+    *(char*)0xB8066 = 'c';
+    *(char*)0xB8067 = 0x0C;
+
+    //assign the start address to the pointer that's going to get returned
+    pointer = (void*)start;
+
+    *(char*)0xB8068 = 'c';
+    *(char*)0xB8069 = 0x0C;
+
+    return pointer;
+}
+
+//void* calloc(unsigned int num_items, unsigned int size)
+//{
+//    return calloc(num_items, size, 0);
+//}
+/*allocates memory in a dynamic way
+writes zeros to allocated memory
+size = size of memory to allocate in bytes
+returned pointer is the start (lower bounds) of the allocated memory location
+*/
+//10/22/23 i don't remember what that "clearing offset" bullshit was supposed to solve but 10/22/23 it was removed to try to make this more close to the "working" code I had it at one time like a year ago
+void* calloc(unsigned int num_items, unsigned int size, unsigned clearingOffset)//clearing offset has to be added to trick the compiler into not flagging this as an error. it's complicated
+{
+    void* pointer;
+    unsigned int start = 0;
+    unsigned int end = 0;
+
+    *(char*)0xB805A = 'c';
+	*(char*)0xB805B = 0x0C;
+
+    //if memory table is completely empty, nothing can conflict with it. Place at beginning of table and call it a day
+    if (memf.getSize() == 0)
+    {
+        start = programHeapStart;
+        end = programHeapStart + (size*num_items);
+        *(char*)0xB805C = 'c';
+        *(char*)0xB805D = 0x0C;
+
+    }
+    else
+    {
+        //set preferred location
+        //start = memb.back() + 1;
+        //end = start + (size*num_items);
+
+        start = programHeapStart;
+        end = programHeapStart + (size*num_items);
+        //probably the most common case
+        /*if (conflicts(memf.back(), memb.back(), start, end))
+        {
+
+            bool stillConflict = true;
+            int i = 0;
+            while (stillConflict && i < totalMemory)
+            {
+                start = programHeapStart + i;
+                end = start + (size*num_items);
+                stillConflict = anyconflict(start, end);
+                i++;
+            }
+            
+        }*/
+        *(char*)0xB805E = 'c';
+        *(char*)0xB805F = 0x0C;
+        //if it doesn't conflict, make sure it doesn't conflict with anything else
+        if (anyconflict(start, end))
+        {
+
+            //if it conflicts, find a new spot
+            bool stillConflict = true;
+            int i = 0;
+            while (stillConflict && i < totalMemory)
+            {
+                start = programHeapStart + i;
+                end = start + (size*num_items);
+                stillConflict = anyconflict(start, end);
+                i++;
+            }
+        }
+
+        *(char*)0xB8060 = 'c';
+        *(char*)0xB8061 = 0x0C;
+        //no conflict? great. Continue with the previously calculated values
+
+    }
+
+    *(char*)0xB8062 = 'c';
+    *(char*)0xB8063 = 0x0C;
+
+    //write zeros to all the stuff in the memory block
+    //for (unsigned int m = start; m < end; m++)    //10/22/23 reverted back to old for loop header
     for(int m = 0; m < (size*(num_items-1)); m++)
     //for(int m = 0; m < end - start; m++)
     {
         //commenting this out STILL solves bugs which isn't good. Something is wrong but I still haven't ben able to figure out what. 
-        //06/02/23 I got those aformentioned bugs solved a long time ago
-        //this needs to be done 1 byte/8 bits at a time or else strange things will happen
-        *(char*)(start+m) = char(0);
+        //*(char*)(m+start) = 0;
 
         //oof, glad I caught this bug before things started getting too complicated. We don't erase stuff beyond end. Only start. start-end needs to be cleared
         //*(unsigned int*)(end+m) = 0;
@@ -184,8 +290,9 @@ void *realloc(void *ptr, unsigned int size)
             memb.erase(bindex);
         }
 
-        //return nullptr;
-        return 0;
+        //some compilers don't do nullptr
+        return nullptr;
+        //return 0;
     }
     *(char*)0xB8050 = 'r';
 	*(char*)0xB8051 = 0x0A;
@@ -199,23 +306,32 @@ void *realloc(void *ptr, unsigned int size)
 	*(char*)0xB8053 = 0x0A;
 
     ///first, allocate new memory block of the correct size
-    void* pointer = calloc(1, size);
+    //during realloc operations, we need to be sure not to overwrite the existing data, so use the calloc offset parameter
+    //void* pointer = calloc(1, size);
+    void *pointer;
     *(char*)0xB8054 = 'r';
 	*(char*)0xB8055 = 0x0A;
     //breakpointHack();
-
-    //if old size is larger than new size, this is a shrink resize operation and copying the original size worth of data will cause wierd bugs
+    // if old size is larger than new size, this is a shrink resize operation and copying the original size worth of data will cause wierd bugs
+    //not clearing during realloc anymore. this means the cause of the bug is elsewhere
     if (oldSize > size)
     {
-        *(char*)0xB8056 = 'r';
-	    *(char*)0xB8057 = 0x0D;
-        memcpy(pointer, ptr, size);
+        pointer = alloca(1, size);
+        *(char *)0xB8056 = 'r';
+        *(char*)0xB8057 = 0x0D;
+        slow_memcpy(pointer, ptr, size);            //not working right for no discernable reason. might as well use slower but easier to debug versions of functions when possible
+    }
+    else if (oldSize == 0)
+    {
+        pointer = alloca(1, size);
     }
     else
     {
-        *(char*)0xB8056 = 'r';
-	    *(char*)0xB8057 = 0x0D;
-        memcpy(pointer, ptr, oldSize);
+        pointer = alloca(1, size);
+        *(char *)0xB8056 = 'r';
+        *(char*)0xB8057 = 0x0D;
+        slow_memcpy(pointer, ptr, oldSize);         //not working right for no discernable reason. might as well use slower but easier to debug versions of functions when possible
+        //we *should* be copying by the same amount in the old size, right?
     }
     *(char*)0xB8058 = 'r';
 	*(char*)0xB8059 = 0x0A;
@@ -295,6 +411,10 @@ void *slow_memcpy(void *dst, const void *src, unsigned int len)
 
 bool conflicts(unsigned int sadr1, unsigned int eadr1, unsigned int sadr2, unsigned int eadr2)
 {
+    //damn troubleshooting memory allocation sucks fuckin' ass
+    unsigned int size1 = eadr1 - sadr1;
+    unsigned int size2 = eadr2 - sadr2;
+
     //if any of the addresses are zero, it's invalid so just return false
     if (sadr1 == 0 || sadr2 == 0 || eadr1 == 0 || eadr2 == 0) return false;
     //if start address 2 is greater than end address 1, a conflict is impossible
@@ -315,12 +435,27 @@ bool conflicts(unsigned int sadr1, unsigned int eadr1, unsigned int sadr2, unsig
     //if end1 is anywhere betwen start2 and end2, it's a conflict
     else if (eadr1 >= sadr2 && eadr1 <= eadr2) return true;
 
+    //if start2 is anywhere between start 1 and end 1, it's a conflict
+    else if (sadr2 >= sadr1 && sadr2 <= eadr1) return true;
+
+    //if end2 is anywhere betwen start1 and end1, it's a conflict
+    else if (eadr2 >= sadr1 && eadr2 <= eadr1) return true;
+
     //and lastly, if start2 is less than start1 but end2 is greater than end1, it's a conflict
     else if(eadr2 > eadr1 && sadr2 < sadr1) return true;
 
-    //for fuck sake
+    //and lastly, if start1 is less than start2 but end1 is greater than end2, it's a conflict
+    else if ((eadr1 > eadr2 && sadr1 < sadr2)) return true;
+
+    //still doesnt fucking fix that stupid fucking bug wtf
+    //else if (sadr1 + size1 >= sadr2) return true;
+    //else if (sadr2 + size2 >= sadr1) return true;
+
+    // for fuck sake
     else if (sadr1 == sadr2) return true;
     else if (eadr1 == eadr2) return true;
+    else if (sadr1 == eadr2) return true;
+    else if (eadr1 == sadr2) return true;
 
     else
     {
@@ -359,12 +494,12 @@ unsigned int getSizeOfMemBlock(void* start, unsigned int* position)
 	*(char*)0xB8073 = 0x0E;*/
     //breakpointHack();
     unsigned int i = 0;
-    while (!foundMatch && i < memf.count)
+    while (!foundMatch && i < memf.getSize())
     //while (!foundMatch && i < memf.getSize())
     {
         *(char*)0xB806C = 'm';
         *(char*)0xB806D = 0x09;
-        if (memf.at_noconst(i) == (unsigned int)start)
+        if (memf.at(i) == (unsigned int)start)
         {
             *(char*)0xB806C = 'm';
             *(char*)0xB806D = 0x0A;
@@ -388,7 +523,7 @@ unsigned int getSizeOfMemBlock(void* start, unsigned int* position)
 
     //set the optional position output to the index position of the found address
     //breakpointHack();
-    //*position = (unsigned int)i;  //not nessecary?
+    *position = i;  //not nessecary?
     //breakpointHack();
     *(char *)0xB806C = 'm';
     *(char*)0xB806D = 0x0A;
@@ -407,6 +542,6 @@ unsigned int getSizeOfMemBlock(void* start, unsigned int* position)
         *(char*)0xB806E = 'm';
         *(char*)0xB806F = 0x0C;
         //breakpointHack();
-        return memb.at_noconst(i) - memf.at_noconst(i);
+        return memb.at(i) - memf.at(i);
     }
 }

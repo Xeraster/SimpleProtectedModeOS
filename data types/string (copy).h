@@ -5,15 +5,17 @@ class string
 {
 public:
     string();
-    string(const string &str);
     string(const char *array);
     string(void* array);
     ~string()
     {
+        //E9_stringDeleteDebug(charArray.max_size(), 'd', charArray.getAddress());
         //charArray.manual_delete();
-        //E9_stringDeleteDebug(charArray.max_size(), '1', (void*)charArray.getAddress());
-        charArray.manual_delete();
+        asmOutb('O', 0xE9);
     }
+
+    //~string causes errors but those errors are easily circumvented with this
+    void manual_delete();
 
     unsigned int length() const { return charArray.getSize(); }
     char& at(unsigned int index) const;
@@ -34,7 +36,6 @@ public:
     //its a long shot, but maybe using this instead of setting equal to " " will make it not completely fuck out
     void manual_clear();
 
-
     string& operator=(const string& other);
     string& operator=(const char* other);
 
@@ -45,13 +46,13 @@ public:
 
     string& operator+=(const char* other);
     string& operator+=(const char other);
-    string& operator+=(const string& other);
+    string& operator+=(const string other);
 
     unsigned int arrayAddress() const { return (unsigned int)charArray.getAddress(); }
     unsigned int containerSize() const { return charArray.max_size(); }
 
 private:
-    rarray<char> charArray;
+    dynarray<char> charArray;
 };
 
 //non-member class specific operators
@@ -61,12 +62,6 @@ bool operator==(const string& lhs, const char* rhs);
 
 //returns the length of a null terminated character array
 unsigned int lengthOfCharArray(const char* array);
-
-//basically the equivalent to python str split function
-//uses char arrays so you will need to free the pointer when done using it
-//never going to happen. You can't have the new operator in a non mac/linux/windows system even if you have a working memory manager + there's no way to prevent it from deallocating the pointer if you try to resrot to any of the other possible workarounds
-//rarray<string>* split(string input, char delimiter);
-void split(string input, char delimiter, rarray<string> *splitsSoFar);
 
 #include "string.hpp"
 

@@ -30,10 +30,18 @@ void shiftCursor(int howFar);
 //performs the equivalent of backspace on textmode 7 or 3 or whatever the default one is
 void backspaceScreen();
 
-void printMemoryAllocation();
+//void printMemoryAllocation(bool contents = false);
 
 //i'm, sick and tired of pasting that one snippet of code over and over to calculate x y values from videoStart. Here's a function to do that
 void cursorAdrToInts(int *x, int *y);
+
+string cpuModelToString(int manufacturer, int model, int family);
+
+int getCpuVendor();
+
+void printMemoryManagement();
+
+void printMemInfo(bool verbose = false);
 
 #include "utilities.cpp"
 

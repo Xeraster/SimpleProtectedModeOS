@@ -1,3 +1,6 @@
+//I decided to start all over from scratch
+//i used liballloc instead of the shitty fucking dynarray allocator but liballoc doesn't seem to be able to handle itself when you throw this much shit and string operations at it
+//#pragma SECTION .kernel
 void _start(void);
 void _init_globals();
 
@@ -12,8 +15,8 @@ void begin()
 	_init_globals();
 
 	//if it made it this far, print another character to the screen
-	*(char*)0xB8006 = 'E';
-	*(char*)0xB8007 = 0x0E;
+	//*(char*)0xB8006 = 'E';
+	//*(char*)0xB8007 = 0x0E;
 
 	//start running the program
 	_start();
@@ -27,24 +30,6 @@ void breakpointHack()
 	return;
 }
 
-//where the usable ram space starts
-unsigned int memorySpace; //start at the beginning of high memory space
-
-//how many bytes of dynamic memory have been used
-unsigned int numUsedBytes;
-
-//how much memory is available in bytes
-unsigned int totalMemory;
-
-unsigned int programHeapStart;
-
-unsigned int globalDevVar;
-
-bool exitSignal;
-
-bool capsLock;
-bool numLock;
-bool scrollLock;
 
 void *__dso_handle;
 
@@ -70,50 +55,143 @@ extern "C" void forceIOPL_High();
 //set bit 12-13 of IOPL to 00
 extern "C" void forceIOPL_Low();
 
-//manually defined memory management. works similarly to malloc, calloc and realloc in linux systems but not quite the same
-extern void *malloc(unsigned int size);
-extern void *calloc(unsigned int num_items, unsigned int size);
-extern void *realloc(void *ptr, unsigned int size);
-extern void free(void *ptr);
+//runs cpuid with eax=1 and then returns result which will be in eax register
+extern "C" int cpu_ident();
+extern "C" int cpu_vendor();
+extern "C" void insert_breakpoint_asm();//surprise surprise. the breakpoint feature that never works, doesn't work
 
-//when the user types stuff, store it in here
-unsigned int commandBufferAddress;
+extern "C" void asmOutb(char byte, short port);
+
+extern "C" char asmInb(short port);
+
+//output to port 16 bits
+extern "C" void asmOutW(short word, short port);
+
+//input to port 16 bits
+extern "C" short asmInW(short port);
+
+//runs the memory allocator through a rigorous test. If the system doesn't crash, success
+bool memManagementTest(bool test1, bool test2, bool test3);
+
+//does memory management work? Try an rarray test
+bool rarrayTest(bool test1 = true, bool test2 = true);
+
+//the ultimate testament of stability
+bool stringTest();
 
 //#include <cmath> //apparently this is required for u_int8_t and shockingly, it actually works
 
 //this also actually works for some reason both on emulators and real hardware
 #include <sys/io.h>
+#include "drivers/port_E9.h"
 
 //dynarrays are just a custom vector-like class
-#include "data types/dynarray.h"
+//#include "data types/dynarray.h"
 
 //custom string class that works on dynarrays. not the same as std string but a lot of the functionality is the same
-#include "data types/string.h"
+//#include "data types/string.h"
 
 //math stuff
 #include "math/invsqrt.h"
 #include "math/math.h"
 
 //the dynamic array that keeps track of data block boundaries
-dynarray<unsigned int> memf;
-dynarray<unsigned int> memb;
+//dynarray<unsigned int> memf;
+//dynarray<unsigned int> memb;
 
 //this is where the manually defined malloc, calloc, realloc, free and other things are
-#include "memory.h"
+//#include "memory.h"
+//does the same thing as memcpy. It trades speed for the advantage of being possibly less buggy and more reliable
+//just remember though, it isn't called slow memcpy for nothing
+void *slow_memcpy(void *dst, const void *src, unsigned int len);
+
+//copy memory from 1 location in ram to another location in ram
+void *memcpy(void *dst, const void *src, unsigned int len);
+//#include "liballoc/liballoc.c"
+#include "falloc/falloc.h"
+//#include "liballoc/linux.c"
+#include "data types/rarray.h"
+#include "data types/string.h"
+//char *videoStart;
 #include "screen.h"
 #include "utilities.h"
+
+//there's some annoying broken stuff I don't feel like fixing right now
+//#include "math/md5.cpp"
 
 //uses the same scancode translation convention as my real mode system and my z80 system
 string scancodesXT_lowercase;
 string scancodesXT_uppercase;
+bool capsLock;
+bool numLock;
+bool scrollLock;
 #include "drivers/keyboard.h"
 #include "drivers/pci.h"
+#include "drivers/ata.h"
+#include "drivers/vgadriver.h"
 #include "commands/commands.h"
 
-void commandLineLoop();
+//use this instead if there's ever a suspicion that memcpy causes crashes
+//just remember though, it isn't called slow memcpy for nothing
+void *slow_memcpy(void *dst, const void *src, unsigned int len)
+{
+    char *d = (char*)dst;
+    char *s = (char*)src;
+    for (int i = 0; i < len; i++)
+    {
+        d[i] = s[i];
+    }
 
-void printWelcomeScreen();
+    return dst;
+}
 
+//copy memory from 1 location in ram to another location in ram
+void *memcpy(void *dst, const void *src, unsigned int len)
+ {
+         unsigned int i;
+ 
+         /*
+00023          * memcpy does not support overlapping buffers, so always do it
+00024          * forwards. (Don't change this without adjusting memmove.)
+00025          *
+00026          * For speedy copying, optimize the common case where both pointers
+00027          * and the length are word-aligned, and copy word-at-a-time instead
+00028          * of byte-at-a-time. Otherwise, copy by bytes.
+00029          *
+00030          * The alignment logic below should be portable. We rely on
+00031          * the compiler to be reasonably intelligent about optimizing
+00032          * the divides and modulos out. Fortunately, it is.
+          */
+ 
+         if ((unsigned int)dst % sizeof(long) == 0 &&
+             (unsigned int)src % sizeof(long) == 0 &&
+             len % sizeof(long) == 0) {
+
+                 long *d = (long*)dst;
+                 const long *s = (long*)src;
+ 
+                 for (i=0; i<len/sizeof(long); i++) {
+                         d[i] = s[i];
+                 }
+         }
+         else {
+                 char *d = (char*)dst;
+                 const char *s = (char*)src;
+ 
+                 for (i=0; i<len; i++) {
+                         d[i] = s[i];
+                 }
+         }
+ 
+         return dst;
+ }
+
+void printStartup()
+{
+	printString("Welcome to Scott's Protected Mode operating system", 0x0F);
+}
+
+//10-26-23: ok, it's time to refine the interface to be less of a glitchy mess and more of a usable command line interface. if you need code for the old command line loop, go get it from one of the broken backups or something as it went 2 years without ever changing so it should be easy enough to find
 void _start(void)
 {
 	//forceIOPL_High();
@@ -121,180 +199,150 @@ void _start(void)
 	// ioperm(0, 0xFFFF, 0);
 
 	//start address of vga textmode memory mapped io
-	videoStart = (char*)0xB8000;
-	//clearScreen(3);
-	//print8bitNumber(memf.getSize(), 94);
+	videoStart = (char*)0xB80A0;
+	*(char*)0xB8006 = 'A';
+	*(char*)0xB8007 = 0x0E;
+	*(char*)0xB8008 = 'B';
+	*(char*)0xB8009 = 0x0E;
+	initialize();//initialized memory manager
+	//addItem(test);
+	*(char*)0xB800A = 'C';
+	*(char*)0xB800B = 0x0E;
+	void *ptr1 = malloc(16);
+	void *ptr2 = malloc(4);
+	void *ptr3 = malloc(50);
+	E9_printMemoryAt((void*)0x20000, 64);
+	intToE9(getIndexOfPointer(ptr1), false);
+	//memManagementTest(false, false, true);
+	//rarrayTest();
+	//intToE9(currentSize, false);
+	//rarray<char> fuck = rarray<char>();
+	//fuck.push_back('4');
+	//fuck.push_back('5');
+	string poop = "poop";
+	printString(poop, 0x0F);
+	printString("..", 0x0D);
+	printString(poop, 0x0E);
+	
+	//there is no memory stability torture test more difficult than setting up the stupidass scancode map.
+	setupScancodeMap();
+	stringTest();
+	E9_printMemoryAt((void*)mmt, 64);
+	*(char*)0xB800C = 'D';
+	*(char*)0xB800D = 0x0D;
+	asmOutb('\n', 0xE9);
+	intToE9(getMaxSizeMMT(), false);
+	asmOutb('\n', 0xE9);
+	intToE9(findMMU()->m_start, false);
+	asmOutb('\n', 0xE9);
+	intToE9(findMMU()->m_end, false);
+	asmOutb('\n', 0xE9);
+	intToE9(currentSize, false);
+	asmOutb('\n', 0xE9);
+	asmOutW(0x3030, 0xE9);
 
-	//printTest();
-	//printCharAdr('1', 0x0E, 1789);
-	//printWelcomeScreen();
-
-	//test the set cursor and integer printing functions
-	setCurPos(0,6);
-	printInt(0xF00F, 0x0F, true);
-
-	int x, y;
-	cursorAdrToInts(&x, &y);
-	setCurPos(59,6);
-	printMemoryAllocation();
-	setCurPos(x,y);
-
-	//test out basic floating point functionality
+	//printString("..325r2urff2ff22ff2f.", 0x0D);
+	//printString(yahuh, 0x0F);
+	//clear the screen. some/most (sample size 2) bioses don't clear the screen before booting
+	clearScreen(3);
+	consoleNewLine(3);
+	printStartup();
+	consoleNewLine(3);
+	memoryInfo("null");		//insert the memory info command just because reasons
+	consoleNewLine(3);
 	string commandBuffer = "";
-	printFloat(InvSqrt(4.0f), 4, true);
-	consoleNewLine();
-	printFloat(InvSqrt(16.0f), 4, true);
-	consoleNewLine();
-	printFloat(InvSqrt(412.114365f), 4, true);
-	consoleNewLine();
-	printFloat(InvSqrt(3241.116f), 4, true);
-	consoleNewLine();
 
-	//grab some bytes from the keyboard to demonstrate that this part actually does work
-	printInt(inb(0x64), 0x0F);
-	printInt(inb(0x60), 0x0F);
-	printInt(inb(0x64), 0x0F);
-	printInt(inb(0x60), 0x0F);
-
-	while(!exitSignal)
+	//start the program loop
+	while (3 == 3)
 	{
-		//if it gets to this loop, print a character
-		*(char*)0xB8094 = 'W';
-		*(char*)0xB8095 = 0x01;//dark blue
+		*(char*)0xB809A = 'Y';
+		*(char*)0xB809B = 0x0D;
 
 		char last = waitChar();
-		//if it gets to this loop, print a character
-		*(char*)0xB8096 = 'W';
-		*(char*)0xB8097 = 0x02;//green
-
-		insertChar(last, 0xE);
+		*(char*)0xB809A = 'Z';
+		*(char*)0xB809B = 0x0D;
+		insertChar(last, 0xF);
 		setVGAtextModeCursor(3);
 
-		*(char*)0xB8096 = 'W';
-		*(char*)0xB8097 = 0x03;//sky blue
 
+		if (last > 31)
+		{
+			commandBuffer += last;
+		}
+		else if (last == 0x08)
+		{
+			//doesn't work right now
+			//commandBuffer = commandBuffer.substr(0, commandBuffer.length() - 2);
+			commandBuffer.pop();
+			// commandBuffer += char(0);
+			// commandBuffer = "";
+			// commandBuffer = temps;
+			last = 0;
+		}
 
-		if (last > 31) commandBuffer+=last;
+		*(char*)0xB809A = 'X';
+		*(char*)0xB809B = 0x0D;
 
-		*(char*)0xB8096 = 'W';
-		*(char*)0xB8097 = 0x04;//red
-		
-		printCharArray("                 ", 0x0E, 62);
 		int x, y;
 		cursorAdrToInts(&x, &y);
-		setCurPos(59,6);
-		printMemoryAllocation();
-		print8bitNumber(commandBuffer.length(), 77);
-		commandBufferAddress = commandBuffer.arrayAddress();
-		print32bitNumber(commandBufferAddress, 66);
-		print8bitNumber(commandBuffer.containerSize(), 62);
+		
+		//no more fucking screen spam
+		for (int i = 0; i < 20; i++)
+		{
+			//print8bitNumber(*(char *)(commandBuffer.arrayAddress() + i), 240 + i);
+			//char charToPrint = *(char *)(commandBuffer.arrayAddress() + i);
+			char charToPrint = commandBuffer[i];
+			printCharAdr(charToPrint, 0x0F, 240+i);
+			// printInt(*(char *)(commandBuffer.arrayAddress() + i), 0x0F, true);
+		}
 
-		*(char*)0xB8096 = 'W';
-		*(char*)0xB8097 = 0x05;//purple
+		*(char*)0xB809A = 'C';
+		*(char*)0xB809B = 0x0D;
+		//print8bitNumber(commandBuffer.containerSize(), 62);
 
 		setCurPos(x,y);
+
+		//printString(commandBuffer, 0x05, 500);
+		//print32bitNumber(commandBuffer.arrayAddress(), 580);
+
+		*(char*)0xB809A = 'R';
+		*(char*)0xB809B = 0x0D;
 
 		//if user pressed enter key
 		if (last == 10)
 		{
-			parseCommand(commandBuffer);
+			//recopy whatever is in command buffer to the screen to demonstrate memory allocator working correctly
+			//if the memory allocation system is functioning any way other than 110% bug free, this will make it obvious
 			//printString(commandBuffer, 0x0E);
+			if (!parseCommand(commandBuffer))
+			{
+				consoleNewLine();
+				printString("Invalid command. Type 'help'", 0x0E);
+				consoleNewLine(3);
+				printMemInfo(true);
+			}
 			consoleNewLine();
 
 			//clear the command buffer
 			//commandBuffer.manual_delete();
-			commandBuffer = "";
-			//commandBuffer.manual_clear();
+			//commandBuffer = "";
+			commandBuffer.manual_clear();
+			// commandBuffer.manual_clear();
 			*(char*)0xB8098 = 'l';//put in different position so i can determine if it ran this once or zero times just by looking at screen output
 			*(char*)0xB8099 = 0x02;//green
 
 		}
 
-		*(char*)0xB8096 = 'W';
-		*(char*)0xB8097 = 0x06;//orange
-
-		*(char*)0xB809A = 'Y';//put in different position so i can determine if it ran this once or zero times just by looking at screen output
-		*(char*)0xB809B = 0x0E;//yellow
-
-		//load a character to screen if it gets this far
-
+		*(char*)0xB809A = 'Y';
+		*(char*)0xB809B = 0x0E;
 	}
-
-	printTest();
-
 
 	return;
 }
 
 void _init_globals()
 {
-	videoStart = (char*)0xB8000;
-	*(char*)0xB8006 = 'I';
-	*(char*)0xB8007 = 0x0E;
-	//initialize globals since that doesn't happen automatically
-	memorySpace = 0x00100000;		//not used for anything right now
-	numUsedBytes = 0;
-	programHeapStart = 0x0007F000;
-	totalMemory = 0x1000;
-	*(char*)0xB8008 = 'G';
-	*(char*)0xB8009 = 0x0E;
 
-	//for now, dynamically allocated memory is between 0x7F000-0x80000
-	memf = dynarray<unsigned int>(0x0007F000); //memory begin goes on the lower block
-	*(char*)0xB800A = 'D';
-	*(char*)0xB800B = 0x0E;
-	memb = dynarray<unsigned int>(0x0007F800); //memory back goes on upper block
-	*(char*)0xB800C = 'A';
-	*(char*)0xB800D = 0x0E;
-
-	//the memory for this is manually allocated since its a chicken and the egg problem. You can't allocate memory without having a memory allocation table. You can't have a memory allocation table without being able to allocate memory
-	//thats why I made the dynarray. It solves that problem 
-	memf.push_back(0x0007F000);
-	memb.push_back(0x0007F000 + (memf.max_size()*sizeof(unsigned int)));
-	//*(char*)0xB800E = 'M';
-	//*(char*)0xB800F = 0x0E;
-	setCurPos(1,1);
-	printInt(memf.getSize(), 0x0E);
-	//printChar('R', 0x0E);
-
-	memf.push_back(0x0007F800);
-	memb.push_back(0x0007F800 + memb.max_size()*sizeof(unsigned int));
-	*(char*)0xB8010 = 'M';
-	*(char*)0xB8011 = 0x0E;
-	printInt(memb.getSize(), 0x0E);
-
-
-	exitSignal = false;
-
-	//memf.push_back(0x0007F800);
-	//memb.push_back(0x0007F800 + (memb.max_size()*sizeof(unsigned int)));
-
-	globalDevVar = 420;
-	*(char*)0xB8012 = '4';
-	*(char*)0xB8013 = 0x0E;
-
-	//scancode data
-	//scancodesXT_uppercase = (char*)calloc(88, sizeof(char));
-	//scancodesXT_lowercase = (char*)calloc(88, sizeof(char));
-	setupScancodeMap();
-
-	*(char*)0xB8014 = 'S';
-	*(char*)0xB8015 = 0x0E;
-	//scancodesXT_lowercase = "poop1234567890-=qwertyuiop[]asdfghjkl;'z";
-	//scancodesXT_lowercase + "o";
-	//scancodesXT_lowercase+="teast5555555555zfafafa555555556";
-
-	//start with these disabled by default
-	capsLock = false;
-	numLock = false;
-	scrollLock = false;
-
-	*(char*)0xB8016 = 'B';
-	*(char*)0xB8017 = 0x0E;
-
-	//commandBuffer = "";
-
-	return;
 }
 
 void commandLineLoop()
@@ -302,25 +350,136 @@ void commandLineLoop()
 
 }
 
-void printWelcomeScreen()
+//runs the memory allocator through a rigorous test. If the system doesn't crash, success
+bool memManagementTest(bool test1, bool test2, bool test3)
 {
-	printCharArray("Welcome to Scott's protected mode operating system", 0x0F, 0);
-	unsigned int usedMemory = 0;
-	for (int i = 0; i < memf.getSize(); i++)
+	//basic test
+	if (test2)
 	{
-		//usedMemory += getSizeOfMemBlock((void*)memf.at(i), nullptr);
-		usedMemory += getSizeOfMemBlock((void*)memf.at(i), 0);
+		void* *ptrs = (void**)malloc(500*sizeof(void*));//an array of pointers
+
+		//allocate 500 memory spots of alternating sizes
+		for (int i = 0; i < 500; i++)
+		{
+			ptrs[i] = malloc(4);
+		}
+
+		//now delete them all
+		for (int i = 0; i < 500; i++)
+		{
+			free(ptrs[i]);
+		}
 	}
 
-	/*can't really see this right that well because of all the debug output 
-	that gets spammed at the top of the screen but right now it 
-	doesn't get anywhere close to allocating more than 2kbytes of 
-	memory which is currently the max it can do before it overflows*/
-	printCharArray("There are ", 0x0F, 80);
-	print32bitNumber(usedMemory, 90);
-	printCharArray(" bytes in use.", 0x0F, 101);
-	
+	//if something is going to fail, it's probably going to fail here
+	if (test2)
+	{
+		//holy fucking shit this one is so slow
+		//now do it again using alternating sizes
+		//too lazy to set up a pseudorandom number
+		void* *ptrs2 = (void**)malloc(4121*sizeof(void*));//an array of pointers
+		for (int i = 0; i < 1000; i++)
+		{
+			//irregular non 4 byte aligned sizes for maximum memory allocator stress
+			unsigned int sizeToDo = 9;
+			if (i % 4 == 0)
+			{
+				sizeToDo = 11;
+			}
+			else if (i % 4 == 1)
+			{
+				sizeToDo = 3;
+			}
+			else if (i % 4 == 2)
+			{
+				sizeToDo = 5;
+			}
+			else if (i % 4 == 3)
+			{
+				sizeToDo = 1;
+			}
 
+			ptrs2[i] = malloc(sizeToDo);
+		}
+
+		//if it survived all that, delete them all
+		for (int i = 0; i < 4121; i++)
+		{
+			free(ptrs2[i]);
+		}
+	}
+
+	//probably not as hard as test2 but it uses larger amounts of memory
+	if (test3)
+	{
+		//allocate smaller numbers of larger data
+		void* *ptrs3 = (void**)malloc(100*sizeof(void*));//an array of pointers
+
+		//allocate 500 memory spots of alternating sizes
+		for (int i = 0; i < 100; i++)
+		{
+			ptrs3[i] = malloc(4096);
+		}
+
+		//now delete them all
+		for (int i = 0; i < 10; i++)
+		{
+			free(ptrs3[i]);
+		}
+	}
+
+	//if it gets to this point, the test was a success
+	return true;
+}
+
+//does memory management work? Try an rarray test
+bool rarrayTest(bool test1, bool test2)
+{
+	//test1 is for primitive data types
+	if (test1)
+	{
+		//try to break rarrays
+
+		//simplest data types first
+		rarray<char> firstArray = rarray<char>();
+		rarray<char> secondArray = rarray<char>();
+		intToE9(currentSize, false);
+		asmOutb('\n', 0xE9);
+
+		for (int i = 0; i < 20; i++)
+		{
+			firstArray.push_back('c');
+		}
+
+		for (int i = 0; i < 20; i++)
+		{
+			secondArray.push_back('u');
+		}
+
+		bool matches = false;
+		int i = 0;
+		while (!matches && i < 20)
+		{
+			if (firstArray.at(i) == secondArray.at(i))
+			{
+				matches = true;
+			}
+			i++;
+		}
+
+		//failed
+		if (matches)
+		{
+			intToE9(currentSize, false);
+			asmOutb('f', 0xE9);
+			return false;
+		}
+	}
+
+	//test2 is for complicated data types
+	intToE9(currentSize, false);
+	asmOutb('p', 0xE9);
+	return true;
 }
 
 /*static __inline unsigned char inb (unsigned short int __port)
@@ -329,3 +488,21 @@ void printWelcomeScreen()
   __asm__ __volatile__ ("inb %w1,%0":"=a" (_v):"Nd" (__port));
   return _v;
 }*/
+
+//the ultimate testament of stability
+bool stringTest()
+{
+	string test1 = "test1";
+	string grapes = "grapes";
+	string tttt;
+	tttt = "tttt";
+
+	string asses = grapes;
+	asses += "_42";
+	printString(test1, 0x01);
+	printString(grapes, 0x02);
+	printString(tttt, 0x03);
+	printString(asses, 0x04);
+
+	return true;
+}

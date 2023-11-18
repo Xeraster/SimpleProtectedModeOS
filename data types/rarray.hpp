@@ -1,29 +1,14 @@
 template <typename T>
-dynarray<T> :: dynarray()
-{
-    if (isHappeningInString)
-    {
-        //breakpointHack();
-    }
-    isHappeningInString = false;
+rarray<T> :: rarray()
+{   
+    *(char*)0xB8012 = 'C';
+	*(char*)0xB8013 = 0x0B;
     array = (T*)calloc(10, sizeof(T));
+    *(char*)0xB8014 = 'V';
+	*(char*)0xB8015 = 0x0B;
     count = 0;
     maxSize = 10;
     m_isMemoryTable = false;
-    m_init = true;
-    return;
-}
-
-//memory allocation not set up yet? Manually specify a location in memory to put the first dynarray
-template <typename T>
-dynarray<T> :: dynarray(unsigned int manual_allocation)
-{
-    //make the array become a pointer 
-    //array = (T*)calloc(10, sizeof(T));
-    array = (T*)manual_allocation;
-    count = 0;
-    maxSize = 10;
-    m_isMemoryTable = true;
     m_init = true;
     return;
 }
@@ -37,39 +22,24 @@ dynarray<T> :: ~dynarray()
 
 //used by realloc when attempting to realloc the memory allocation table dynarrays
 template <typename T>
-void dynarray<T> :: manual_resize(unsigned int newMaxSize, void* newArrayAddress)
+void rarray<T> :: manual_resize(unsigned int newMaxSize, void* newArrayAddress)
 {
     array = (T*)newArrayAddress;
     maxSize = newMaxSize;
 }
 
 template <typename T>
-void dynarray<T> :: push_back(T item, bool normalOperation)
+void rarray<T> :: push_back(T item)
 {
-    *(char*)0xB803A = 'B';
+    *(char*)0xB803A = '!';
 	*(char*)0xB803B = 0x0E;
-    //if count is less than max size, just simply apply the data to the highest position and call it a day
-    //if it's the memory allocator, it needs to resize 2 spaces before it gets empty since the process of resizing itself takes 2 additional spaces
-    if (count + 3 >= maxSize && m_isMemoryTable && normalOperation)
+    if (!m_init)
     {
-        //realloc doesn't change the value of ptr. You have to get the returned value
-        array = (T*)realloc(this, maxSize + 10);
-        //realloc(array, maxSize + 10);
-        //resize(maxSize + 10);
-        //array[count] = item;
-        //count++;
-
-        //remember to apply the new data or it will get desynced
-        array[count] = item;
-        count++;
-        *(char*)0xB803A = 'B';
-	    *(char*)0xB803B = 0x0C;
-    }
-    //I finally figured out how to get automatic variable deletion to work
-    else if (!m_init)
-    {
-        //if not initialized, do so
+        *(char*)0xB803A = '3';
+	    *(char*)0xB803B = 0x0A;
         array = (T*)calloc(10, sizeof(T));
+        *(char*)0xB803A = '!';
+	    *(char*)0xB803B = 0x0D;
         count = 0;
         maxSize = 10;
         m_isMemoryTable = false;
@@ -87,20 +57,30 @@ void dynarray<T> :: push_back(T item, bool normalOperation)
         //count++;
         array[count] = item;
         count++;
+        *(char*)0xB803A = 'B';
+	    *(char*)0xB803B = 0x0E;
     }
     else
     {
+        *(char*)0xB803A = 'H';
+	    *(char*)0xB803B = 0x0E;
         resize(maxSize + 10);
+        *(char*)0xB803A = 'H';
+	    *(char*)0xB803B = 0x0D;
         array[count] = item;
         count++;
+        *(char*)0xB803A = 'B';
+	    *(char*)0xB803B = 0x0F;
     }
+    *(char*)0xB803A = '3';
+	*(char*)0xB803B = 0x0E;
 
-    return;
+    //return;
 }
 
 //delete the last element
 template <typename T>
-void dynarray<T> :: pop_back()
+void rarray<T> :: pop_back()
 {
     if (count > 0)
     {
@@ -110,7 +90,7 @@ void dynarray<T> :: pop_back()
 
 //inserts an item at designated position
 template <typename T>
-void dynarray<T> :: insert(unsigned int position, T item)
+void rarray<T> :: insert(unsigned int position, T item)
 {
     //if count is close to the max size, grow it a little before doing this
     if (maxSize <= count + 1)
@@ -133,7 +113,7 @@ void dynarray<T> :: insert(unsigned int position, T item)
 
 //deletes element at position and then shifts everything down
 template <typename T>
-void dynarray<T> :: erase(unsigned int position)
+void rarray<T> :: erase(unsigned int position)
 {
     for (int i = position; i < count - 1; i++)
     {
@@ -146,7 +126,7 @@ void dynarray<T> :: erase(unsigned int position)
 
 //deletes everything in the data object
 template <typename T>
-void dynarray<T> :: clear()
+void rarray<T> :: clear()
 {
     //I mean, right? Am I missing something or is this all there is to it?
     //count = 0;
@@ -182,8 +162,18 @@ void dynarray<T> :: clear()
 
 //makes the data object become the same size as newSize
 template <typename T>
-void dynarray<T> :: resize(unsigned int newSize)
+void rarray<T> :: resize(unsigned int newSize)
 {
+    //clear previous output
+    *(char*)0xB8043 = 0x00;
+    *(char*)0xB8045 = 0x00;
+    *(char*)0xB8047 = 0x00;
+    *(char*)0xB8043 = 0x00;
+    *(char*)0xB8049 = 0x00;
+    *(char*)0xB804B = 0x00;
+    *(char*)0xB804D = 0x00;
+
+    unsigned int oldSize = maxSize*sizeof(T);
     maxSize = newSize;
     *(char*)0xB8042 = 'R';
 	*(char*)0xB8043 = 0x0D;
@@ -193,7 +183,17 @@ void dynarray<T> :: resize(unsigned int newSize)
     void* oldPtr = (void*)array;
     *(char*)0xB8046 = 'R';
 	*(char*)0xB8047 = 0x0D;
-    array = (T*)realloc(oldPtr, newSizeInBytes);
+    //array = (T*)realloc(array, newSizeInBytes);
+    //array = (T*)malloc(newSizeInBytes);
+    array = (T*)calloc(1, newSizeInBytes);
+    if (oldSize < newSizeInBytes)
+    {
+        slow_memcpy(array, oldPtr, oldSize);
+    }
+    else
+    {
+        slow_memcpy(array, oldPtr, newSizeInBytes);
+    }
     *(char*)0xB8048 = 'R';
 	*(char*)0xB8049 = 0x0D;
     
@@ -211,12 +211,12 @@ void dynarray<T> :: resize(unsigned int newSize)
     *(char*)0xB804C = 'R';
 	*(char*)0xB804D = 0x0E;
 
-    return;
+    //return;
 }
 
 //changes the size of the data object to exactly contain everything and no more
 template <typename T>
-void dynarray<T> :: shrink_to_fit()
+void rarray<T> :: shrink_to_fit()
 {
     //it needs a buffer of like 5 or it won't work for some reason
     resize(count+5);
@@ -224,21 +224,21 @@ void dynarray<T> :: shrink_to_fit()
 
 //returns whatever element is at front
 template <typename T>
-T& dynarray<T> :: front()
+T& rarray<T> :: front()
 {
     return array[0];
 }
 
 //returns whatever element is at back
 template <typename T>
-T& dynarray<T> :: back()
+T& rarray<T> :: back()
 {
     if (count > 0) return array[count-1];
     else return *(T*)nullptr;//put zero here if compiler complains about nullptr
 }
 
 template <typename T>
-bool dynarray<T> :: find(T thingToFind, unsigned int* index)
+bool rarray<T> :: find(T thingToFind, unsigned int* index)
 {
     int i = 0;
     bool found = false;
@@ -261,7 +261,7 @@ bool dynarray<T> :: find(T thingToFind, unsigned int* index)
 
 //gets the size of object in memory
 template <typename T>
-unsigned int dynarray<T> :: memSize() const
+unsigned int rarray<T> :: memSize() const
 {
     return sizeof(array[0]) * count;
 }

@@ -107,8 +107,10 @@ void printInt(unsigned int number, short color, bool hex)
 			//print the digit to the screen
 			printChar(printableResult[i], color);
 		}
-
 	}
+
+	//edge case for if the inputted number = 0
+	if (number == 0) printChar('0', color);
 
 	return;
 

@@ -32,7 +32,8 @@ writes zeros to allocated memory
 size = size of memory to allocate in bytes
 returned pointer is the start (lower bounds) of the allocated memory location
 */
-void *calloc(unsigned int num_items, unsigned int size);
+void *calloc(unsigned int num_items, unsigned int size, unsigned int clearingOffset);   //default arguments for clearingoffset cause an error. gcc doesn't like it and it will fight you in unpredictable ways when you try to redefine calloc or any of ther other gnu memory management functions
+//void *calloc(unsigned int num_items, unsigned int size);
 
 /*reallocates memory to a new address
 ptr = desired lower bounds of address to move block of data to

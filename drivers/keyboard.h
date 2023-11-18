@@ -40,10 +40,6 @@ extern "C" void kbd8042WaitReadReady();
 
 extern "C" void kbd8042WaitWriteReady();
 
-extern "C" void asmOutb(char byte, short port);
-
-extern "C" char asmInb(short port);
-
 #include "keyboard.cpp"
 
 #endif

@@ -1,33 +1,42 @@
-#ifndef DYNARRAY_H
-#define DYNARRAY_H
-//do not touch with any of this without testing it EXTREMELY well...
+#ifndef RARRAY_H
+#define RARRAY_H
 
-//basically a vector, just a worse one that works with my memory allocation system
-//probably lighter on memory than the og vector class
-//you need dynamic memory allocation in your kernel before you can make dynamic data containers. But you need at least some kind of dynamic data container before you can get dynamic memory allocation. REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+//rarray is just a dynarray without the ability to memory manage itself
 template <typename T>
-class dynarray
+class rarray
 {
 public:
-    dynarray();
+    rarray();
 
-    //memory allocation not set up yet? Manually specify a location in memory to put the first dynarray
-    //it's recommended to put this in 0x0007F000 for it's initial value if trying to set up the kernel. That should give you enough space to store 1000 32-bit pointers before something bad happens.
-    dynarray(unsigned int manual_allocation);
+    rarray(const rarray<T>& other)
+    {
+        asmOutb('k',0xE9);
+        void* oldPtr = array;
+        count = 0;
+        maxSize = 10;
+        free(array);
+        array = (T*)malloc(maxSize * sizeof(T));
+        m_init = true;
+        for (int i = 0; i < other.getSize(); i++)
+        {
+            push_back(other.at(i));
+        }
+    }
+
 
     //deletion operator
-    ~dynarray()
+    ~rarray()
     {
         count = 0;
         maxSize = 0;
         free(array);
     }
 
-    //for when g++/ld is being stupid (this stopped being relevant once I figured out how to get the linker to work the way I needed it to)
+    //getting delete and new operators to work is fucking impossible so use this workaround. want to refute that point? Then prove otherwise. Remember: no outside libraries unless you can make them actually compile and run on target hardware (486sx)
     void manual_delete()
     {
-        count = 0;
-        maxSize = 0;
+        //count = 0;
+        //maxSize = 0;
         free(array);
         return;
     }
@@ -39,7 +48,7 @@ public:
     //maybe omit the wierd iterator business though. This data type is for stability. Speed is a secondary concern
 
     //attaches an item to the back of the array
-    void push_back(T item, bool normalOperation = true);
+    void push_back(T item);
 
     //delete the last element
     void pop_back();
@@ -80,16 +89,24 @@ public:
     T& at(unsigned int index) const { return array[index]; }
     T& at_noconst(int index) { return array[index]; }
 
-    //wow, the entire system relies on this being set up in a broken way. Fuck
-    dynarray<T>& operator=(const dynarray<T>& other)
+    rarray<T>& operator=(const rarray<T>& other)
     {
-        //the system won't even run without this block of code but this block of code is stupid and wrong
-            free(array);
-            count = other.getSize();
-            array = other.getAddress();
-            maxSize = other.max_size();
-            m_isMemoryTable = other.is_memory_table();
-            m_init = other.is_init();
+        asmOutb('p',0xE9);
+        void* oldPtr = array;
+        count = 0;
+        maxSize = 10;
+        free(array);
+        array = (T*)malloc(maxSize * sizeof(T));
+        //array = other.getAddress();
+        //maxSize = other.max_size();
+        //m_isMemoryTable = other.is_memory_table();
+        m_init = other.is_init();
+        //slow_memcpy(array, oldPtr, maxSize * sizeof(T));
+        for (int i = 0; i < other.getSize(); i++)
+        {
+            push_back(other.at(i));
+        }
+
         
         /*if (other.is_memory_table())
         {
@@ -120,6 +137,50 @@ public:
 
         return *this;
     }
+
+    //i don't think i'll end up finding a way to get this working
+    void* operator new(unsigned int size)
+    {
+
+        /**(char*)0xB8012 = 'N';
+	    *(char*)0xB8013 = 0x0E;
+        array = (T*)calloc(10, sizeof(T));
+        *(char*)0xB8014 = 'U';
+	    *(char*)0xB8015 = 0x0E;
+        count = 0;
+        maxSize = 10;
+        m_isMemoryTable = false;
+        m_init = true;*/
+
+        //return (T*)calloc(10, sizeof(T));
+        //void* ptr = (void)rarray<T>();
+        
+        //really ugly hack but there seems to be no other way
+        /*rarray<T> newArray = rarray<T>();
+        void *ptr = (T*)malloc(newArray.memSize());
+        memcpy(ptr, (void*)newArray, newArray.memSize()); //now thje rarray I created can be deleted*/
+
+        //there just isn't a way to do this is there
+    
+        intToE9(size, false);
+        asmOutb('p', 0xE9);
+        asmOutb('P', 0xE9);
+        //return ptr;
+
+        //return (void*)rarray<T>();
+        //return malloc
+        //__asm__("hlt");
+        //wizard-7b ai said to do this
+        return malloc(size);
+    }
+
+    //void* newRarray()
+
+    /*void* operator delete(void* ptr)
+    {
+
+    }*/
+
     unsigned int count;
 private:
     unsigned int maxSize;
@@ -131,6 +192,6 @@ private:
     unsigned int memSize() const;
 };
 
-#include "dynarray.hpp"
+#include "rarray.hpp"
 
 #endif

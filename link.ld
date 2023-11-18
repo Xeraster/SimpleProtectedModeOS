@@ -1,14 +1,24 @@
 OUTPUT_FORMAT("binary")
 SECTIONS
-{
+{   
     . = 0x7c00;
     
-    .text : ALIGN(1K)
+    .bootloader : ALIGN(1K)
     {
-        bootloader.o(.text)
-        *(.text .text.*)
+        *(.bootloader .bootloader*)
     }
-
+    
+    .auxFunctions : ALIGN(1K)
+    {
+    	misc_tools.o(.auxFunctions)
+    	*(.auxFunctions .auxFunctions.*)
+    }
+    
+    .text : ALIGN(4K)
+    {
+    	*(.text .text*)
+    }
+    
     .rodata : ALIGN(4K)
     {
         *(.rodata .rodata.*)
@@ -23,11 +33,7 @@ SECTIONS
     {
         *(.bss .bss.*)
     }
-
-    .auxFunctions : ALIGN(1K)
-    {
-        
-    }
+    
 
     end = .;
 }

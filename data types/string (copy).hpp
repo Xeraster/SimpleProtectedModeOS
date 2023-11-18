@@ -1,5 +1,6 @@
 string :: string()
 {
+    isHappeningInString = true;
     //charArray.clear();
     //charArray.clear();
     //charArray.resize(20);
@@ -17,29 +18,11 @@ string :: string()
     // charArray = (dynarray)malloc(10);
     // charArray();
 
-    //printf((unsigned int)charArray.getAddress(), 0xB8026, 0x0E);
-    //printf((unsigned int)charArray.max_size(), 0xB80C6, 0x0E);
-    //printf((unsigned int)charArray.getSize(), 0xB80B0, 0x0E);
-    E9_stringCreateDebug(charArray.max_size(), '0', (void*)charArray.getAddress());
-}
-
-string :: string(const string &str)
-{
-    //asmOutb('L', 0xE9);
-    //E9_strcpy((void*)charArray.getAddress());
-    //*(char*)0xB8030 = 'E';
-	//*(char*)0xB8031 = 0x0E;
-    //charArray.clear();
-    //charArray.resize(10);
-    //*(char*)0xB8031 = 'E';
-	//*(char*)0xB8032 = 0x0E;;
-    for (int i = 0; i < str.length(); i++)
-    {
-        charArray.push_back(str.at(i));
-        //*(char *)(0xB8000 + (i * 2)) = other.at(i);
-        //*(char *)(0xB8001 + (i * 2)) = 0x0E;
-    }
-    E9_stringCreateDebug(charArray.max_size(), '1', (void*)charArray.getAddress());
+    printf((unsigned int)charArray.getAddress(), 0xB8026, 0x0E);
+    printf((unsigned int)charArray.max_size(), 0xB80C6, 0x0E);
+    printf((unsigned int)charArray.getSize(), 0xB80B0, 0x0E);
+    
+    E9_stringCreateDebug((unsigned int)charArray.max_size(), '0', charArray.getAddress());
 }
 
 string :: string(const char *array)
@@ -60,6 +43,7 @@ string :: string(const char *array)
     //for (int i = 0; i < 7; i++)
     while(array[i] != 0)
     {
+        asmOutb(array[i], 0xE9);
         char charToAdd = array[i];
         charArray.push_back(charToAdd);
         // charToAdd = array[i];
@@ -67,8 +51,8 @@ string :: string(const char *array)
     }
 
     //different color A depending on which constructor ran. yellow if this one
-    *(char*)0xB8028 = 'A';
-	*(char*)0xB8029 = 0x0E;
+    //*(char*)0xB8028 = 'A';
+	//*(char*)0xB8029 = 0x0E;
     //unsigned int oldv = (unsigned int)videoStart;
     //printf((unsigned int)charArray.getAddress());
     //printf((unsigned int)charArray.max_size(), 0xB80C6);
@@ -77,8 +61,7 @@ string :: string(const char *array)
     //videoStart = (char*)oldv;
     //isHappeningInString = true;
     //breakpointHack();
-    E9_stringCreateDebug(charArray.max_size(), '2', (void*)charArray.getAddress());
-
+    E9_stringCreateDebug((unsigned int)charArray.max_size(), '1', charArray.getAddress());
 
 
     return;
@@ -109,11 +92,15 @@ string :: string(void* array)
     *(char*)0xB8028 = 'A';
 	*(char*)0xB8029 = 0x0D;
     //breakpointHack();
-
-    E9_stringCreateDebug(charArray.max_size(), '3', (void*)charArray.getAddress());
-
+    E9_stringCreateDebug((unsigned int)charArray.max_size(), '2', charArray.getAddress());
 
     return;
+}
+
+void string :: manual_delete()
+{
+    //10/22/23 commented this out. maybe the object deletes itself when the string is deleted
+    //free(&charArray);
 }
 
 char& string :: at(unsigned int index) const
@@ -222,18 +209,18 @@ void string :: manual_clear()
 
 string& string :: operator=(const string& other)
 {
+    E9_strcpy((void*)charArray.getAddress());
+    //*(char*)0xB8030 = 'E';
+	//*(char*)0xB8031 = 0x0E;
     charArray.clear();
-    *(char*)0xB8030 = 'E';
-	*(char*)0xB8031 = 0x0E;
-    //charArray.clear();
-    //charArray.resize(10);
-    *(char*)0xB8031 = 'E';
-	*(char*)0xB8032 = 0x0E;;
+    charArray.resize(10);
+    //*(char*)0xB8031 = 'E';
+	//*(char*)0xB8032 = 0x0E;;
     for (int i = 0; i < other.length(); i++)
     {
         charArray.push_back(other.at(i));
-        *(char *)(0xB8000 + (i * 2)) = other.at(i);
-        *(char *)(0xB8001 + (i * 2)) = 0x0E;
+        //*(char *)(0xB8000 + (i * 2)) = other.at(i);
+        //*(char *)(0xB8001 + (i * 2)) = 0x0E;
     }
 
     //charArray = other.charArray;
@@ -244,8 +231,8 @@ string& string :: operator=(const string& other)
 string& string :: operator=(const char* other)
 {
     //its being set equal to something and everything else is being discarded
-    //charArray.clear();
-    //charArray.resize(10);
+    charArray.clear();
+    charArray.resize(10);
     int i = 0;
     while (other[i] != 0)
     {
@@ -303,7 +290,7 @@ string& string :: operator+=(const char other)
     return *this;
 }
 
-string& string :: operator+=(const string &other)
+string& string :: operator+=(const string other)
 {
     int i = 0;
     for (int i = 0; i < other.length(); i++)
@@ -354,10 +341,6 @@ bool operator==(const char* lhs, const string& rhs)
 
 bool operator==(const string& lhs, const char* rhs)
 {
-    asmOutb('\n', 0xE9);
-    asmOutb('a', 0xE9);
-    asmOutb('a', 0xE9);
-    asmOutb('\n', 0xE9);
     // get length of char array by figuring out where the null terminator is
     int y = lengthOfCharArray(rhs);
 
@@ -373,16 +356,6 @@ bool operator==(const string& lhs, const char* rhs)
             i++;
         }
 
-        for (int o = 0; o < lhs.length(); o++)
-        {
-            asmOutb('[', 0xE9);
-            asmOutb(rhs[o], 0xE9);
-            asmOutb('.', 0xE9);
-            asmOutb(lhs.at(o), 0xE9);
-            asmOutb(']', 0xE9);
-            asmOutb(' ', 0xE9);
-        }
-        asmOutb('\n', 0xE9);
         return stillEqual;
     }
 }
@@ -398,48 +371,4 @@ unsigned int lengthOfCharArray(const char* array)
 	}
 
 	return i;
-}
-
-//basically the equivalent to python str split function
-//uses char arrays so you will need to free the pointer when done using it
-//rarray<string> split(string input, char delimiter)
-void split(string input, char delimiter, rarray<string> *splitsSoFar)
-{
-    //never going to happen. You can't have the new operator in a non mac/linux/windows system even if you have a working memory manager.
-    //rarray<string> splitsSoFar = rarray<string>();
-    //asmOutb('\n', 0xE9);
-    //splitsSoFar->clear();   //the closest to working I could get the "new" operator was a really dumb hack that chatgpt shat out
-    //intToE9((unsigned int)splitsSoFar, false);
-    //asmOutb('\n', 0xE9);
-    //__asm__("hlt");
-    /*if (!allocationExists(splitsSoFar))
-    {
-        asmOutb('e', 0xE9);
-        asmOutb('r', 0xE9);
-        asmOutb('r', 0xE9);
-        asmOutb('o', 0xE9);
-        asmOutb('r', 0xE9);
-    }
-    asmOutb('y', 0xE9);
-    asmOutb('a', 0xE9);
-    asmOutb('y', 0xE9);*/
-    splitsSoFar->clear();
-    string soFar = "";
-    for(int i = 0; i < input.length(); i++)
-    {
-        if (input.at(i) != delimiter)
-        {
-            soFar += input.at(i);
-        }
-        else
-        {
-            splitsSoFar->push_back(soFar);
-            soFar = "";
-        }
-    }
-
-    //now copy the string to a char array pointer.. oh wait shit that won't work. I mean it kinda would but preventing memory leaks while doing it this way would be really hard probably
-    //meh, just return the resize array object fuck it
-    //this will probably never work.
-    //return splitsSoFar;
 }

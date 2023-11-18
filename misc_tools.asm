@@ -78,3 +78,270 @@ asmInb:
 
     leave
 ret
+
+;;the same thing but for 16 bit transfers
+global asmOutW
+asmOutW:
+
+    push ebp
+    mov ebp, esp
+
+    mov edx, [ebp+12]
+    mov eax, [ebp+8]
+    out dx, ax
+
+    leave
+
+ret
+
+global asmInW
+asmInW:
+    push ebp
+    mov ebp, esp
+    
+    mov edx, [ebp+8]
+
+    mov eax, 0
+    in ax, dx
+
+    leave
+ret
+
+;cpuid command. get information about the cpu and then return it
+global cpu_ident
+cpu_ident:
+    push ebp
+    mov ebp, esp
+
+    CPU 586
+    mov eax, 0x01
+    cpuid
+    CPU 486
+
+    ;info we want is in the eax register
+
+    leave
+ret
+
+;get the cpu vendor
+global cpu_vendor
+cpu_vendor:
+    push ebp
+    mov ebp, esp
+
+    CPU 586
+    mov eax, 0
+    cpuid
+    CPU 486
+
+    ;good enough
+    mov eax, ebx
+
+    leave
+ret
+
+global enable_A20
+enable_A20:
+        ;cli
+ 
+        call    a20wait
+        mov     al,0xAD
+        out     0x64,al
+ 
+        call    a20wait
+        mov     al,0xD0
+        out     0x64,al
+ 
+        call    a20wait2
+        in      al,0x60
+        push    eax
+ 
+        call    a20wait
+        mov     al,0xD1
+        out     0x64,al
+ 
+        call    a20wait
+        pop     eax
+        or      al,2
+        out     0x60,al
+ 
+        call    a20wait
+        mov     al,0xAE
+        out     0x64,al
+ 
+        call    a20wait
+        ;sti
+        ret
+ 
+a20wait:
+        in      al,0x64
+        test    al,2
+        jnz     a20wait
+        ret
+ 
+ 
+a20wait2:
+        in      al,0x64
+        test    al,1
+        jz      a20wait2
+        ret
+
+;I don't have time to implement all this shit if its not going to work
+;thats why im making this happen for all errors
+generic_error:
+    mov al, 'F'
+    mov ah, 0x04
+    mov [0xB8936], ax
+    mov al, 'U'
+    mov ah, 0x04
+    mov [0xB8938], ax
+    mov al, 'C'
+    mov ah, 0x04
+    mov [0xB893A], ax
+    mov al, 'K'
+    mov ah, 0x04
+    mov [0xB893C], ax
+
+    hlt
+
+ret
+
+;trigger interrupt 3 and hopefully trigger an arbitrary breakpoint
+global insert_breakpoint_asm
+insert_breakpoint_asm:
+    push ebp
+    mov ebp, esp
+    int 3
+    leave
+ret
+
+Invalid_TSS:
+
+ret
+
+;sets up the ldt and then fucks off
+setupldt:
+
+    ;put address of error subroutine
+    mov eax, generic_error
+    mov [Invalid_TSS_INT], ax
+    mov cl, 16
+    sar eax, cl
+    mov [Invalid_TSS_INT+6], ax
+
+    lidt [top_idt] ;load gdt settings
+ret
+
+;Now for the idt
+;you need interrupts to work since exceptions are interrupts
+idt:
+
+    dq 0x00
+    Invalid_TSS_INT:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT1:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT2:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT3:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT4:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT5:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT6:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT7:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT8:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT9:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT10:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT11:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT12:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT13:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT14:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT15:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+    Invalid_TSS_INT16:
+	;each entry is 64 bits (damn lol what a pain)
+	dw 0x00	;offset bits 0-15
+	dw 0x10	;segment selector 16 bits
+	dw 0xEE00	;bits32-39 reserved. bits 40-43 gate type. bit 45-46 dpl. bit 47 present bit
+	dw 0x00	;offset bits 16-31
+end_of_idt:
+top_idt:
+	dw end_of_idt - idt - 1
+	dd idt
+
+    %include "drivers/vgadriver.asm"

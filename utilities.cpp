@@ -193,7 +193,7 @@ void backspaceScreen()
 	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
 	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
 
-	char *rowAdr = (char*)(0xB8000 + ((Y * 80))*2);
+	char *rowAdr = (char*)(0xB8000 + ((Y * 80))*2) + 1;
 	for(int i = (X*2); i < 160; i++)
 	{
 		*(rowAdr + i) = *(char*)(rowAdr + i + 2);
@@ -204,7 +204,7 @@ void backspaceScreen()
 	return;
 }
 
-void printMemoryAllocation()
+/*void printMemoryAllocation(bool contents)
 {
 	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
 	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
@@ -212,8 +212,9 @@ void printMemoryAllocation()
 	unsigned int usedMemory = 0;
 	for (int i = 0; i < memf.getSize(); i++)
 	{
-		//usedMemory += getSizeOfMemBlock((void*)memf.at(i), nullptr);
-		usedMemory += getSizeOfMemBlock((void*)memf.at(i), 0);
+		//some cross compilers dont do nullptr
+		usedMemory += getSizeOfMemBlock((void*)memf.at(i), nullptr);
+		//usedMemory += getSizeOfMemBlock((void*)memf.at(i), 0);
 	}
 
 	print32bitNumber(usedMemory, X+(Y*80));
@@ -222,23 +223,33 @@ void printMemoryAllocation()
 	Y++;
 
 	//first, completely erase anything that would be behind this
-	for (int i = 0; i < memf.getSize(); i++)
+	for (int i = 0; i < memf.getSize() + 6; i++)
 	{
 		//print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), nullptr), X-6+((i+Y)*80));
-		printCharArray("                  ", 0x0E, X-6+((i+Y)*80));
+		printCharArray("                           ", 0x0E, X-6+((i+Y)*80));
 	}
 
 	for (int i = 0; i < memf.getSize(); i++)
 	{
 		//print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), nullptr), X-6+((i+Y)*80));
-		print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), 0), X-6+((i+Y)*80));
+		print16bitNumber(getSizeOfMemBlock((void*)memf.at(i), nullptr), X-6+((i+Y)*80));
 		print32bitNumber((unsigned int)memf.at(i), X+((i+Y)*80));
 		print32bitNumber((unsigned int)memb.at(i), X+11+((i+Y)*80));
 		printCharAdr('-',0x0F, X+10+((i+Y)*80));
+		//print contents if applicable
+		if (contents)
+		{
+			char v = ' ';
+			for (int c = 0; c < 10 && v != char(0); c++)
+			{
+				v = *(char*)(memf.at(i)+c);
+				printCharAdr(v, 0x0F, X+21+c+((i+Y)*80));
+			}
+		}
 	}
 
 	return;
-}
+}*/
 
 //i'm, sick and tired of pasting that one snippet of code over and over to calculate x y values from videoStart. Here's a function to do that
 void cursorAdrToInts(int *x, int *y)
@@ -250,4 +261,261 @@ void cursorAdrToInts(int *x, int *y)
 	*y = Y;
 
 	return;
+}
+
+//fuck it. 0 = intel. 1 = amd. 2 = cyrix. 3 = ibm
+string cpuModelToString(int manufacturer, int model, int family)
+{
+	string vendorName;
+	string modelName;
+
+	if (family == 4)
+	{
+		//486 dx1
+		if (model >= 0 && model < 2)
+		{
+			modelName = "486DX";
+		}
+		else if (model == 2)
+		{
+			modelName = "486SX";
+		}
+		else if (model == 3 || model == 7)
+		{
+			modelName = "486DX2";
+		}
+		else if (model == 4)
+		{
+			modelName = "486SL";
+		}
+		else if (model == 5)
+		{
+			modelName = "486SX2";
+		}
+		else if (model == 8 || model == 9)
+		{
+			modelName = "486DX4";
+		}
+		else if (model == 0xE || model == 0xF)
+		{
+			modelName = "5x86 DX5";
+		}
+	}
+	else if (family == 5)
+	{
+		if (manufacturer == 0)
+		{
+			if (model < 4)
+			{
+				modelName = "Pentium";
+			}
+			else if (model >= 4)
+			{
+				modelName = "Pentium MMX";
+			}
+		}
+		else
+		{
+			if (model < 4)
+			{
+				modelName = "K5";
+			}
+			else if (model ==6 || model == 7)
+			{
+				modelName = "K6";
+			}
+			else if (model == 8)
+			{
+				modelName = "K6-II";
+			}
+			else if (model == 9)
+			{
+				modelName = "K6-III";
+			}
+			else if (model == 0xD)
+			{
+				modelName = "K6-III+";
+			}
+		}
+	}
+	else if (family == 6)
+	{
+		//if intel
+		if (manufacturer == 0)
+		{
+			if (model < 2)
+			{
+				modelName = "Pentium Pro";
+			}
+			else if (model < 7)
+			{
+				modelName = "Pentium II";
+			}
+			else if (model < 9 || model == 0xA)
+			{
+				modelName = "Pentium III";
+			}
+			else if (model == 5 || model == 6)
+			{
+				modelName = "Pentium 4";
+			}
+			else
+			{
+				modelName = "Pentium M";
+			}
+		}
+		//AMD
+		else
+		{
+			if (model < 6 && model != 3)
+			{
+				modelName = "Athlon";
+			}
+			else if (model == 7 || model == 3)
+			{
+				modelName = "Duron";
+			}
+			else
+			{
+				modelName = "Athlon XP";
+			}
+		}
+	}
+	//one more level just for fun
+	else if (family == 0xF)
+	{
+		if (manufacturer == 0)
+		{
+			modelName = "Pentium 4";
+		}
+		else
+		{
+			if (model == 5)
+			{
+				modelName = "Opteron";
+			}
+			else
+			{
+				modelName = "Athlon 64";
+			}
+		}
+	}
+	//the special cases
+	else
+	{
+		if (family == 0x15 && model == 3)
+		{
+			modelName = "Pentium Overdrive";
+		}
+		modelName = "something modern";
+	}
+
+	//now do the vendor stuff
+	switch (manufacturer)
+	{
+	case 0:
+		vendorName = "Intel ";
+		break;
+	case 1:
+		vendorName = "AMD ";
+		break;
+	case 2:
+		vendorName = "Cyrix ";
+		break;
+	case 3:
+		vendorName = "VIA ";
+		break;
+	case 4:
+		vendorName = "SIS ";
+		break;
+	case 5:
+		vendorName = "UMC ";
+		break;
+	case 6:
+		vendorName = "Vortex 86 ";
+		break;
+
+	default:
+		vendorName = "unknown vendor. ";
+		break;
+	}
+
+	string finalString = vendorName + modelName;
+	return finalString;
+}
+
+//fuck it. 0 = intel. 1 = amd. 2 = cyrix. 3 = via. 4 = sis. 5 = umc. 6 = vortex86
+int getCpuVendor()
+{
+	int result = cpu_vendor();
+
+	//"Genu" - it's probably intel
+	if (result == 0x756E6547)
+	{
+		return 0;
+	}
+	//both amd strings
+	else if (result == 0x68747541 || result == 0x69444D41)
+	{
+		return 1;
+	}
+	//cyrix
+	else if (result == 0x69727943)
+	{
+		return 2;
+	}
+	//VIA
+	else if (result == 0x20414956)
+	{
+		return 3;
+	}
+	//sis
+	else if (result == 0x20534953)
+	{
+		return 4;
+	}
+	//umc
+	else if (result == 0x20434D55)
+	{
+		return 5;
+	}
+	//vortex 86
+	else if (result == 0x73726F56)
+	{
+		return 6;
+	}
+	return 7;
+}
+
+void printMemoryManagement()
+{
+	//fucking strings fuckity fuck fuck
+	printString("Total used memory is ", 0x0F);
+	printInt(totalUsedMemory(), 0x0E);
+	printString(" out of ", 0x0F);
+	printInt(totalMaxMemory(), 0x0E);
+	//messageString += totalUsedMemory()
+}
+
+void printMemInfo(bool verbose)
+{
+    for (int i = 0; i < currentSize; i++)
+    {
+        printInt(mmt[i].m_start, 0x0F, false);
+        printChar('-',0x0F);
+        printInt(mmt[i].m_end, 0x0F, false);
+        printChar(' ',0x0F);
+        printChar(' ',0x0F);
+        printInt(mmt[i].m_end - mmt[i].m_start, 0x0F, false);
+		if (verbose)
+		{
+			for (int u = 0; u < 40; u++)
+			{
+				printChar(*(char*)(mmt[i].m_start + u), 0x0D);
+			}
+		}
+        consoleNewLine(3);
+    }
+	//printMemoryManagement();
+	printInt(currentSize, 0x0E, false);
 }

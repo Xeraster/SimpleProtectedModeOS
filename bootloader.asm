@@ -1,13 +1,17 @@
 ;works on qemu. works on bochs. doesn't work on a real life 486 system.
-[CPU 486]
+CPU 486
 bits 16
 
-SECTION .text
+SECTION .bootloader
 
+extern enable_A20
 extern _Z5beginv
 
 _start:
 cli 	;disable interrupts because not doing this increases chances of things not working
+
+;mov dx, 0xE9
+;out dx, al
 
 ;xor ax, ax    ; make sure ds is set to 0
 mov eax, 0
@@ -17,15 +21,33 @@ cld
 ; start putting in values:
 ;mov dl, 80h   ;select first drive;doing this makes bochs not able to load it.. because bochs has to load it as a floppy, makes sense
 mov ah, 2h    ; int13h function 2
-mov al, 55    ; we want to read a lot of sectors I guess. 55 * 512 = ~28kb = a lot 
+mov al, 128   ; we want to read a lot of sectors I guess. 128 * 512 = a lot. setting this to 129 or higher will prevent the system from working
 mov ch, 0     ; from cylinder number 0
 mov cl, 2     ; the sector number 2 - second sector (starts from 1, not 0)
 mov dh, 0     ; head number 0
-mov bx, 0h
-mov es, bx    ; es should be 0
-mov bx, 7e00h; 512bytes from origin address 7e00h
+mov bx, 07e0h
+mov es, bx
+mov bx, 0000h; 512bytes from origin address 7e00h
+int 13h
+
+cli
+;the program is larger than 64kb now. hopefully this will copy the second chunk to ram starting at 0x10000
+mov ah, 2h    ; int13h function 2
+mov al, 128   ; we want to read a lot of sectors I guess. 128 * 512 = a lot. setting this to 129 or higher will prevent the system from working
+mov ch, 0     ; from cylinder number 0
+mov cl, 130     ; the sector number 2 - second sector (starts from 1, not 0)
+mov dh, 0     ; head number 0
+mov bx, 1000h
+mov es, bx
+mov bx, 0000h; 512bytes from origin address 7e00h
 int 13h
 ;end comment out block
+
+cli		;bios interrupts can reenable interrupts so be sure to disable them again
+
+mov al, '1'
+mov dx, 0xE9
+out dx, al
 
 lgdt [toc] ;load gdt settings
 
@@ -49,8 +71,8 @@ code_descriptor:	; cs should point to this descriptor
 	dw 0xffff		; segment limit first 0-15 bits
 	dw 0x0			; segment base bits 0-15
 	db 0x0			; base 16-23 bits
-	db 0b10011110	; access byte
-	db 0b11111111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
+	db 0b10011011	; access byte
+	db 0b11101111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
 	db 0x0			; base 24-31 bits
 
 ; offset 0x10 (16 bytes)
@@ -58,25 +80,27 @@ data_descriptor:	; ds, es, fs, gs, and ss should point to this descriptor
 	dw 0xffff		; segment limit first 0-15 bits
 	dw 0x0			; segment base bits 0-15
 	db 0x0			; base 16-23 bits
-	db 0b10010010	; access byte
-	db 0b11111111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
+	db 0b10010011	; access byte
+	db 0b11101111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
 	db 0x0			; base 24-31 bits
 ; offset 0x18 (24 bytes)
 stack_descriptor:
 	dw 0xffff		; segment limit first 0-15 bits
 	dw 0x00			; segment base bits 0-15
 	db 0x00			; base 16-23 bits
-	db 0b10010010	; access byte
-	db 0b11111111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
+	db 0b10010011	; access byte
+	db 0b11101111	; high 4 bits (flags) low 4 bits (limit 4 last bits)(limit is 20 bit wide)
 	db 0x0			; base 24-31 bits
 end_of_gdt:
 toc: 
 	dw end_of_gdt - gdt - 1 	; limit (Size of GDT)
 	dd gdt
 
-
 [BITS 32]
 pmodecont:
+mov al, '2'
+mov dx, 0xE9
+out dx, al
 ;maybe using the debug registers will make breakpoints work
 ;mov eax, dr7
 ;and eax, 11111111111100001111111111111111b
@@ -87,7 +111,7 @@ pmodecont:
 
 ;hlt
 ;movzx esp, [ds:manualStackAddress]
-mov ebp, 0x2FFFF
+mov ebp, 0x30000
 mov esp, ebp
 mov		eax, 0x10	; set data segments to data selector (0x10)
 mov		es, ax
@@ -125,13 +149,18 @@ inc eax
 mov [eax], cl
 
 ;;enable A20 line using "fast" method
-in al, 0x92
-test al, 2
-jnz after
-or al, 2
-and al, 0xFE
-out 0x92, al
-after:
+;in al, 0x92
+;test al, 2
+;jnz after
+;or al, 2
+;and al, 0xFE
+;out 0x92, al
+;after:
+
+mov al, '3'
+mov dx, 0xE9
+out dx, al
+call bootloader_enable_A20	;there. now the bootloader uses nothing outside its own file/binary/section. in theory this should make linking easier. in practice, it doesn't help anything
 
 mov eax, 0B8002h
 mov cl, 'F'
@@ -141,9 +170,58 @@ inc eax
 mov [eax], cl
 inc eax
 
+mov al, '4'
+mov dx, 0xE9
+out dx, al
 ;after doing all this protected mode stuff, attempt to jump into the c code
-jmp _Z5beginv
+call _Z5beginv
+;call 0x10000
 hlt
+
+bootloader_enable_A20:
+        ;cli
+ 
+        call    a20wait
+        mov     al,0xAD
+        out     0x64,al
+ 
+        call    a20wait
+        mov     al,0xD0
+        out     0x64,al
+ 
+        call    a20wait2
+        in      al,0x60
+        push    eax
+ 
+        call    a20wait
+        mov     al,0xD1
+        out     0x64,al
+ 
+        call    a20wait
+        pop     eax
+        or      al,2
+        out     0x60,al
+ 
+        call    a20wait
+        mov     al,0xAE
+        out     0x64,al
+ 
+        call    a20wait
+        ;sti
+        ret
+ 
+a20wait:
+        in      al,0x64
+        test    al,2
+        jnz     a20wait
+        ret
+ 
+ 
+a20wait2:
+        in      al,0x64
+        test    al,1
+        jz      a20wait2
+        ret
 
 ; to fill this sector and make it bootable:
 	manualStackAddress dd 0x00010000
