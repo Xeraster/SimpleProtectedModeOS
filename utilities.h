@@ -43,6 +43,12 @@ void printMemoryManagement();
 
 void printMemInfo(bool verbose = false);
 
+//print the number of memory allocated things in ram
+void printMemNum();
+
+//THE HEX READER. Prints 256 bytes to the screen starting at given address. A useful hex reader
+void readMemoryHex(unsigned int address, unsigned int rows = 16);
+
 #include "utilities.cpp"
 
 #endif

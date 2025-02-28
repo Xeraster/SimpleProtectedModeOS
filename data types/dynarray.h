@@ -80,10 +80,11 @@ public:
     T& at(unsigned int index) const { return array[index]; }
     T& at_noconst(int index) { return array[index]; }
 
-    //wow, the entire system relies on this being set up in a broken way. Fuck
+    //wow, the entire system relies on this being set up in a broken way. update 02/28/2025: that comment was referencing something from several releases ago and is no longer relevant
     dynarray<T>& operator=(const dynarray<T>& other)
     {
         //the system won't even run without this block of code but this block of code is stupid and wrong
+            //02/28/2025: looks good to me ¯\_(ツ)_/¯
             free(array);
             count = other.getSize();
             array = other.getAddress();
@@ -114,7 +115,6 @@ public:
                 push_back(other.at(i));
             }
 
-            //fuck
             //slow_memcpy(array, other.array, other.count * sizeof(T));
         }*/
 

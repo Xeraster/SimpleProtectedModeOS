@@ -52,6 +52,16 @@ bool restOfLineIsBlank(int posX, int posY);
 //move the cursor to the leftmost position of whatever line is under the current one
 void consoleNewLine(unsigned int videoMode = 3);
 
+void print8BitHexInt(unsigned int hexNum);
+
+void printFileList(rarray<fileInfo> *list, filesystemInfo *sys);
+
+//prints a date and time struct to the textmode 3 console
+void printDateTime(datetime *input);
+
+//checks videoStart to see if a newline needs to be inserted and if so, inserts it. Try to avoid using for performance sensitive applications
+void checkIfNewlineNeeded();
+
 #include "screen.cpp"
 
 #endif

@@ -186,8 +186,7 @@ a20wait2:
         jz      a20wait2
         ret
 
-;I don't have time to implement all this shit if its not going to work
-;thats why im making this happen for all errors
+;a really basic way to move an error message to a location in memory so that it can be read with a debugger
 generic_error:
     mov al, 'F'
     mov ah, 0x04
@@ -204,6 +203,10 @@ generic_error:
 
     hlt
 
+ret
+
+;drop into real mode and jump to the 1mb ram boundary. Takes no inputs because i'm not going to spend an entire afternoon trial and erroring stack calling conventions until it works
+bootFromHighMem:
 ret
 
 ;trigger interrupt 3 and hopefully trigger an arbitrary breakpoint

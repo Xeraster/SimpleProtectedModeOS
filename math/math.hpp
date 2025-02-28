@@ -25,3 +25,29 @@ char intToHexChar(int input)
 
 	return val; 
 }
+
+unsigned int betterRand(unsigned int seed)
+{
+	//first time ever using long long int
+	seed += 0xe120fc15;
+	unsigned long long int tmp;
+	tmp = (unsigned long long int)seed * 0x4a39b70d;
+	unsigned int m1 = (tmp >> 32) ^ tmp;
+	tmp = (unsigned long long int)m1 * 0x12fad5c9;
+	unsigned int m2 = (tmp >> 32) ^ tmp;
+	return m2;
+}
+
+//return the absolute value of the given number. Intended to be the same as the std math abs
+unsigned int abs(int num)
+{
+	if (num < 0)
+	{
+		return num*-1;
+	}
+	else
+	{
+		return num;
+	}
+
+}

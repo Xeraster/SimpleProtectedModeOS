@@ -66,6 +66,47 @@ vga_editPaletteReg:
     leave
 ret
 
+;i cant get attribute register reads to work. maybe it can only be done via assembly code
+global vga_readPaletteReg
+vga_readPaletteReg:
+    push ebp
+    mov ebp, esp
+    
+    mov edx, [ebp+8]   ;reg number
+    mov cl, dl
+    
+    mov dx, 3DAh ;read the status of input status #1 register which will reset the attribute access register to index selection mode
+    in al, dx
+
+    and ah, 00011111b
+    mov dx, 3C0h        ;set al to address of attribute controller register
+    mov al, ah
+    out dx, al          ;set ah and index number to write value to attribute controller address register
+    ;now the flipflop should have changed value so next write to 03C0h will be the value of the color
+
+    mov dx, 3DAh
+    in al, dx       ;flip ram port so that the video card can read the palette registers instead of the host system
+
+    mov dx, 3C1h
+    in al, dx
+    push ax
+        ;now change bit 5 of attribute address register back to 1
+        mov dx, 3DAh
+        in al, dx       ;flip ram port so that the video card can read the palette registers instead of the host system
+        mov dx, 3C0h
+        mov al, 00100000b
+        out dx, al
+    pop ax
+
+
+   ;mov edx, [ebp+8]
+
+    ;mov eax, 0
+    ;in al, dx
+    ;hopefuly the correct value will be in al so it wil be returned in c++
+    leave
+ret
+
 ;directly copied from Real Mode OS but contains no mode-specific code so it's fine
 ;changes bit plane
 ;inputs: al = number of bit plane to use. Valid values are 0, 1, 2 and 3

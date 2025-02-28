@@ -1,3 +1,4 @@
+//i can't remember how exactly I was using this, but port E9 can be used as a serial console in bochs to make debugging easier. I can't remember if it was possible to get this working on qemu or not
 #ifndef PORT_E9
 #define PORT_E9
 

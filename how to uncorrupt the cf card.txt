@@ -1,0 +1,2 @@
+sometimes if dd crashes or something it can messup the 2gb cf card I use to the point where not even gparted can fix it. When that happens, I runt his command to fix it. Different cfcards will need different values for count.
+sudo dd if=/dev/zero of=/dev/sde bs=512 count=3980592 conv=noerror

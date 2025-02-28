@@ -85,7 +85,7 @@ char waitChar()
         //keyboardWaitReadReady();
         //forceIOPL_High();
         //kbd8042WaitReadReady(); //use this instead maybe it will work on physical pcs and not just emulators
-        //kdbData = inb(0x60);//this fucks everything up dont do it
+        //kdbData = inb(0x60);//this ruins everything dont do it
         //kdbData = asmInb(0x60);
         
         *(char*)0xB8938 = 'D';
@@ -110,6 +110,23 @@ char waitChar()
     return scancodeToChar(kdbData, 0);
     //return 'F';
    // return kdbData;
+
+}
+
+//waits for user to press enter and then returns whatever string was typed during that time
+string waitString(bool showProgress)
+{
+    string newString = "";
+    char nextChar = waitChar();
+    while (nextChar != 0x0A && nextChar != 0x0D)
+    {
+        printChar(nextChar, 0x0E);
+        newString+=nextChar;
+        nextChar= waitChar();
+    }
+    
+    //returned whatever the user typed in
+    return newString;
 
 }
 

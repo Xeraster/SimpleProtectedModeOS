@@ -241,7 +241,7 @@ void MD5::transform(const uint1 block[blocksize])
   state[3] += d;
  
   // Zeroize sensitive information.
-  memset(x, 0, sizeof x);
+  memset(x, 0, sizeof(x));
 }
  
 //////////////////////////////
@@ -267,7 +267,7 @@ void MD5::update(const unsigned char input[], size_type length)
   if (length >= firstpart)
   {
     // fill buffer first, transform
-    memcpy(&buffer[index], input, firstpart);
+    slow_memcpy(&buffer[index], input, firstpart);
     transform(buffer);
  
     // transform chunks of blocksize (64 bytes)
@@ -280,7 +280,7 @@ void MD5::update(const unsigned char input[], size_type length)
     i = 0;
  
   // buffer remaining input
-  memcpy(&buffer[index], &input[i], length-i);
+  slow_memcpy(&buffer[index], &input[i], length-i);
 }
  
 //////////////////////////////
@@ -337,12 +337,33 @@ string MD5::hexdigest() const
   if (!finalized)
     return "";
  
-  char buf[33];
+  /*char buf[33];
   for (int i=0; i<16; i++)
     sprintf(buf+i*2, "%02x", digest[i]);
   buf[32]=0;
  
-  return string(buf);
+  return string(buf);*/
+  //i don't have sprintf so I'll redo the equivalent
+
+  //convert the 16 bytes into a string
+  string result = "";
+  //char lowByte = *(char*)digest[0];
+  //char highByte = *(char*)digest[8];
+  for (int i = 0; i < 16; i++)
+  {
+    //get the number
+    char thing = digest[i];
+    //there, now convert it to hex
+    char low = intToHexChar(thing & 0x0F);
+    char high = intToHexChar((thing & 0xF0)>>4);
+    result += high;
+    result += low;
+  }
+  //string result = "2e242424";
+  //result += highByte;
+  //result += lowByte;
+
+  return result;  //string is being returned, it is valid
 }
  
 //////////////////////////////

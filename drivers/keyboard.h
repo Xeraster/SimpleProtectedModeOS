@@ -16,6 +16,9 @@ bool keyboardWaitAck();
 //waits for user input and 
 char waitChar();
 
+//waits for user to press enter and then returns whatever string was typed during that time
+string waitString(bool showProgress);
+
 //deals with stuff related to special keyboard functions (i.e. caps lock or shift)
 bool manageSpecialKeyboardFunctions(char function, bool lastKeyAlt);
 

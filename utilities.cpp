@@ -263,7 +263,7 @@ void cursorAdrToInts(int *x, int *y)
 	return;
 }
 
-//fuck it. 0 = intel. 1 = amd. 2 = cyrix. 3 = ibm
+//0 = intel. 1 = amd. 2 = cyrix. 3 = ibm
 string cpuModelToString(int manufacturer, int model, int family)
 {
 	string vendorName;
@@ -518,4 +518,99 @@ void printMemInfo(bool verbose)
     }
 	//printMemoryManagement();
 	printInt(currentSize, 0x0E, false);
+}
+
+//print the number of memory allocated things in ram
+void printMemNum()
+{
+	consoleNewLine();
+	printString("Current size = ", 0x0F);
+	printInt(currentSize, 0x0F);
+}
+
+//THE HEX READER. Prints 256 bytes to the screen starting at given address. A useful hex reader
+void readMemoryHex(unsigned int address, unsigned int rows)
+{
+	printString("            ", 0x0F);
+    for (int i = 0; i < 16; i++)
+    {
+        printChar('0', 0x0F);
+        printInt(i, 0x0F, true);
+        printChar(' ', 0x0F);
+    }
+
+    for (int i = 0; i < rows; i++)
+    {
+        consoleNewLine();
+        printString("0x",0x0F);
+        // figure out how many chars there are and produce some leading zeros
+        //string spacingAmount = "";
+        if (address+(i*16) <= 15)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 255)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 4095)
+        {
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 65535)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 1048575)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 16777216)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        if (address+(i*16) <= 268435455)
+        {
+            //spacingAmount += "  ";
+            printChar('0',0x0F);
+        }
+        //printString(spacingAmount, 0x0F);
+
+        printInt(address+(i*16), 0x0F, true);
+        printChar(':', 0x0F);
+        printChar(' ', 0x0F);
+
+        //print the contents of memory in numerical hex format
+        for (int u = 0; u < 16; u++)
+        {
+            char valueToRead = *(char*)(address+(i*16)+u);
+            //valueToRead = valueToRead & 0xFF;
+            //printInt(valueToRead, 0x0F, false);
+            char high = intToHexChar((valueToRead & 0xF0)>>4);
+            char low = intToHexChar(valueToRead & 0x0F);
+            //intToHexChar(high);
+            //intToHexChar(low);
+            printChar(high, 0x0F);
+            printChar(low, 0x0F);
+            printChar(' ', 0x0F);
+        }
+
+        //now print the same contents to the side in string format. there's enough room for this on 640x350
+        for (int s = 0; s < 16; s++)
+        {
+            char valueToRead = *(char*)(address+(i*16)+s);
+            if (valueToRead < 31)
+            {
+                valueToRead = '.';
+            }
+            printChar(valueToRead, 0x0F);
+        }
+    }
+
+	return;
 }

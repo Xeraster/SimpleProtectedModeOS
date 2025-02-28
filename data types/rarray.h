@@ -27,12 +27,17 @@ public:
     //deletion operator
     ~rarray()
     {
+        //try deleting each element of array before deleting
+        /*for (int i = 0; i < count; i++)
+        {
+            delete [] array[i];
+        }*/
         count = 0;
         maxSize = 0;
         free(array);
     }
 
-    //getting delete and new operators to work is fucking impossible so use this workaround. want to refute that point? Then prove otherwise. Remember: no outside libraries unless you can make them actually compile and run on target hardware (486sx)
+    //getting delete and new operators to work is hard so use this workaround. want to refute that point? Then prove otherwise. Remember: no outside libraries unless you can make them actually compile and run on target hardware (486sx)
     void manual_delete()
     {
         //count = 0;
@@ -131,7 +136,6 @@ public:
                 push_back(other.at(i));
             }
 
-            //fuck
             //slow_memcpy(array, other.array, other.count * sizeof(T));
         }*/
 

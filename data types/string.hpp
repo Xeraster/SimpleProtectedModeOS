@@ -6,8 +6,8 @@ string :: string()
     //charArray.clear();
     //charArray.resize(10);
     //charArray = dynarray<char>();
-    *(char*)0xB8028 = 'A';
-	*(char*)0xB8029 = 0x0C;
+    //*(char*)0xB8028 = 'A';//
+	//*(char*)0xB8029 = 0x0C;//
     //breakpointHack();
     // charArray = new char[1];
     // charArray[0] = 0;
@@ -20,7 +20,7 @@ string :: string()
     //printf((unsigned int)charArray.getAddress(), 0xB8026, 0x0E);
     //printf((unsigned int)charArray.max_size(), 0xB80C6, 0x0E);
     //printf((unsigned int)charArray.getSize(), 0xB80B0, 0x0E);
-    E9_stringCreateDebug(charArray.max_size(), '0', (void*)charArray.getAddress());
+    //E9_stringCreateDebug(charArray.max_size(), '0', (void*)charArray.getAddress());
 }
 
 string :: string(const string &str)
@@ -29,7 +29,7 @@ string :: string(const string &str)
     //E9_strcpy((void*)charArray.getAddress());
     //*(char*)0xB8030 = 'E';
 	//*(char*)0xB8031 = 0x0E;
-    //charArray.clear();
+    charArray.clear();
     //charArray.resize(10);
     //*(char*)0xB8031 = 'E';
 	//*(char*)0xB8032 = 0x0E;;
@@ -39,11 +39,13 @@ string :: string(const string &str)
         //*(char *)(0xB8000 + (i * 2)) = other.at(i);
         //*(char *)(0xB8001 + (i * 2)) = 0x0E;
     }
-    E9_stringCreateDebug(charArray.max_size(), '1', (void*)charArray.getAddress());
+    //E9_stringCreateDebug(charArray.max_size(), '1', (void*)charArray.getAddress());
 }
 
 string :: string(const char *array)
 {
+    *(char*)0xB8048 = 'S';
+	*(char*)0xB8049 = 0x0A;
     //isHappeningInString = true;
     //char* arrayTestCheck = array;
     //char charToAdd = array[0];
@@ -51,8 +53,8 @@ string :: string(const char *array)
 	//*(char*)0xB8025 = 0x0E;
     //charArray.clear();  //I am skepical about this "fix" but putting it here did at least seem to stop bugs.. for now
     //charArray.resize(10);  //an ugly hack but it does stop all the issues
-    *(char *)0xB8026 = 'S';
-    //charArray.clear();
+    //*(char *)0xB8026 = 'S';
+    charArray.clear();
     //charArray.resize(10);
     //*(char*)0xB8027 = 0x0E;
     //globalDevVar = (unsigned int)array;
@@ -67,8 +69,8 @@ string :: string(const char *array)
     }
 
     //different color A depending on which constructor ran. yellow if this one
-    *(char*)0xB8028 = 'A';
-	*(char*)0xB8029 = 0x0E;
+    //*(char*)0xB8028 = 'A';
+	//*(char*)0xB8029 = 0x0E;
     //unsigned int oldv = (unsigned int)videoStart;
     //printf((unsigned int)charArray.getAddress());
     //printf((unsigned int)charArray.max_size(), 0xB80C6);
@@ -77,7 +79,10 @@ string :: string(const char *array)
     //videoStart = (char*)oldv;
     //isHappeningInString = true;
     //breakpointHack();
-    E9_stringCreateDebug(charArray.max_size(), '2', (void*)charArray.getAddress());
+    //E9_stringCreateDebug(charArray.max_size(), '2', (void*)charArray.getAddress());
+
+    *(char*)0xB8048 = 0x00;
+	*(char*)0xB8049 = 0x00;
 
 
 
@@ -110,7 +115,7 @@ string :: string(void* array)
 	*(char*)0xB8029 = 0x0D;
     //breakpointHack();
 
-    E9_stringCreateDebug(charArray.max_size(), '3', (void*)charArray.getAddress());
+    //E9_stringCreateDebug(charArray.max_size(), '3', (void*)charArray.getAddress());
 
 
     return;
@@ -133,7 +138,7 @@ void string :: pop()
     return;
 }
 
-//fuck. there has got to be a way to get usful debug information in some way that doesn't involve a serial isa card on real hardware..
+//it's possible to use port E9 to get debug information in bochs
 string string :: substr(unsigned int pos, unsigned int len) const
 {
     //breakpointHack();
@@ -176,6 +181,11 @@ string string :: substr(unsigned int pos, unsigned int len) const
 
         return temp;
     }*/
+}
+
+char * string :: c_str() const
+{
+    return charArray.getAddress();
 }
 
 bool string :: contains(string s2)
@@ -234,6 +244,7 @@ string& string :: operator=(const string& other)
         charArray.push_back(other.at(i));
         *(char *)(0xB8000 + (i * 2)) = other.at(i);
         *(char *)(0xB8001 + (i * 2)) = 0x0E;
+        //commenting this these debug strings doesn't improve speed in any meaningful way
     }
 
     //charArray = other.charArray;
@@ -244,7 +255,7 @@ string& string :: operator=(const string& other)
 string& string :: operator=(const char* other)
 {
     //its being set equal to something and everything else is being discarded
-    //charArray.clear();
+    charArray.clear();
     //charArray.resize(10);
     int i = 0;
     while (other[i] != 0)
@@ -433,13 +444,14 @@ void split(string input, char delimiter, rarray<string> *splitsSoFar)
         }
         else
         {
+            //pushing back this string seems to be the cause of The C++ Bug
             splitsSoFar->push_back(soFar);
             soFar = "";
+            //soFar.manual_clear();
         }
     }
 
-    //now copy the string to a char array pointer.. oh wait shit that won't work. I mean it kinda would but preventing memory leaks while doing it this way would be really hard probably
-    //meh, just return the resize array object fuck it
-    //this will probably never work.
+    //now copy the string to a char array pointer.. oh wait that won't work. I mean it kinda would but preventing memory leaks while doing it this way would be really hard probably
+    //meh, just return the resize array object
     //return splitsSoFar;
 }

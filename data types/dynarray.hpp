@@ -163,7 +163,7 @@ void dynarray<T> :: clear()
    // }
 
     //count = 0;
-    //move to a different fucking spot
+    //move to a different spot
     //unsigned int newSizeInBytes = sizeof(T)*maxSize;
     //void* oldPtr = (void*)array;
     //array = (T*)realloc(oldPtr, newSizeInBytes);

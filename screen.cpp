@@ -3,10 +3,15 @@ void printChar(char msg, short color)
 	//only do it if the inputted character is a valid ascii code
 	if (msg > 31)
 	{
-		*videoStart = msg;
+		/**videoStart = msg;
 		videoStart++;
 		*videoStart = color;
-		videoStart++;
+		videoStart++;*/
+		//see if doing 16 bit transfer is faster, since each char takes 2 bytes anyway
+		short dat = msg;
+		dat += (color<<8);
+		*(short*)videoStart = dat;
+		videoStart+=2;
 
 	}
 
@@ -64,7 +69,13 @@ void printString(string text, short color)
 //prints an int to the screen
 void printInt(unsigned int number, short color, bool hex)
 {
-	char printableResult[10]; //designate 5 spaces for the maximum sized 16 bit integer
+	//all the ducks aren't perfectly aligned, bug this should eliminate that rare base 10 bug
+	//char printableResult[10]; //designate 5 spaces for the maximum sized 16 bit integer
+	char *printableResult = (char*)malloc(sizeof(char) * 40);	//make a bigger array than we need to circumvent the base 10 bugs. just remember to free when done with it
+	for (int i = 0; i < 40; i++)
+	{
+		printableResult[i] = 0;
+	}
 
 	//use a different encoding scheme for hex and decimal
 	if (hex)
@@ -108,6 +119,9 @@ void printInt(unsigned int number, short color, bool hex)
 			printChar(printableResult[i], color);
 		}
 	}
+
+	//no memory leaks
+	free(printableResult);
 
 	//edge case for if the inputted number = 0
 	if (number == 0) printChar('0', color);
@@ -359,11 +373,13 @@ void consoleNewLine(unsigned int videoMode)
 		/*time for a for loop. 
 		*/
 
-		for (unsigned int i = (unsigned int)videoStart; i < 0xBFFFF; i++)
+		//try to use memcpy instead
+		/*for (unsigned int i = (unsigned int)videoStart; i < 0xBFFFF; i++)
 		{
 			*(char*)(videoStart-160) = *(char*)videoStart;
 			videoStart = (char*)i;
-		}
+		}*/
+		memcpy(videoStart-160, videoStart, 0xBFFFF-(unsigned int)videoStart);
 
 		//wow that loop is always fairly complicated when I do it with raw assembly
 
@@ -373,4 +389,91 @@ void consoleNewLine(unsigned int videoMode)
 	}
 
 	return;
+}
+
+void print8BitHexInt(char hexNum)
+{
+	char high = intToHexChar((hexNum & 0xF0)>>4);
+    char low = intToHexChar(hexNum & 0x0F);
+    //intToHexChar(high);
+    //intToHexChar(low);
+    printChar(high, 0x0F);
+    printChar(low, 0x0F);
+	return;
+}
+
+void printFileList(rarray<fileInfo> *list, filesystemInfo *sys)
+{
+	for (int i = 0; i < list->getSize(); i++)
+	{
+		fileInfo *file = &list->at(i);
+		if (file->isValidFile)
+		{
+			printString(file->fileName, 0x0F);
+			if (!file->isDirectory)
+			{
+				printChar('.', 0x0F);
+				printString(file->fileExtension, 0x0F);
+
+				printString("    ",0x0F);
+				unsigned int yeah = file->size;
+				printInt(yeah, 0x0F, false);
+				printString(" bytes", 0x0F);
+			}
+			else
+			{
+				//printChar('d', 0x0F);
+			}
+
+			//print the sector number too
+			//printString("      Cluster number: 0x",0x0F);//computationally wasteful way of adding spaces, meh dont care. 486s are fast enough for this type of crap
+			printString("    Cluster: ",0x0F);	//take up less space b/c of information spam
+			if (sys->partitionType == 0x0B || sys->partitionType == 0x0C)
+			{
+				//if filesystem is not fat16, pring the high cluster word
+				printInt((short)file->clusterNumberHigh & 0x0000FFFF, 0x0F, true);
+				//printChar(' ', 0x0F);
+			}
+			printInt((short)file->clusterNumberLow & 0x0000FFFF, 0x0F, true);
+			
+			//print the date and time
+			printDateTime(&file->fileDateTime);
+			consoleNewLine();
+		}
+	}
+}
+
+void printDateTime(datetime *input)
+{
+	printString("    ", 0x0F);
+	printInt(input->month & 0x0000007F, 0x0F);
+	printChar('/', 0x0F);
+	printInt(input->day & 0x0000001F, 0x0F);
+	printChar('/', 0x0F);
+	printInt(input->year+1980, 0x0F);
+
+	printChar(' ', 0x0F);
+
+	printInt(input->hours & 0x000000FF, 0x0F);
+	printChar(':', 0x0F);
+	printInt(input->minutes & 0x0000003F, 0x0F);
+	printChar(':', 0x0F);
+	printInt(input->seconds * 2, 0x0F);		//for seconds, multiply by 2
+}
+
+//checks videoStart to see if a newline needs to be inserted and if so, inserts it. Try to avoid using for performance sensitive applications
+void checkIfNewlineNeeded()
+{
+	unsigned int X = (((unsigned int)videoStart-0xB8000)/2) % 80;
+	unsigned int Y = (((unsigned int)videoStart-0xB8000)/160);
+	/*if ((unsigned int)videoStart > 0xB8C80)
+	{
+		consoleNewLine();
+	}*/
+	if (Y > 22)
+	{
+		consoleNewLine();
+		setCurPos(1, Y-1);		//reposition to xpos because reasons
+		setVGAtextModeCursor(3);
+	}
 }

@@ -7,9 +7,13 @@
 #define FALLOC_H
 
 //where in memory things should start
-const unsigned int MEMORY_LOC = 0x20000;    //default start location at the ~128kb address
+const unsigned int MEMORY_LOC = 0x120000;//0x30004;    //seems like a good spot maybe
 const unsigned int START_TABLE_SIZE = 4096; //absolute size of the starting table in bytes. Keep in mind memData structs are 8 (i think) bytes in size
 unsigned int MEMORYLIMIT = 0xFFFFFF;//where is the ram limit cutoff. non-const because you are intended be able to change this on the fly
+const unsigned int CONFLICT_CHECK_STEPPING = 4;//the higher this number is, the faster but less stable the memory manager runs
+//*hits blunt* what if instead of checking all 2^32 bytes for a free spot, you check +1 byte beyond what block n is, and repeat until you either get past the last block or find a suitable free space?
+//expanding can't happen without a complete rewrite of the memory system, but having good defragmentation makes up for it. 
+//If I need block expansion AND defragmentation, i'd rather spend effort improving the hardware so I can run the Linux kernel insted, a route that would probably be easier in addition to having better end results
 
 struct memData
 {
@@ -30,6 +34,7 @@ void *malloc(unsigned int size);
 void *realloc(void *ptr, unsigned int size);
 void *calloc(unsigned int num, unsigned int size);
 void free(void *ptr);
+void *memset(void *ptr, int value, unsigned int num);
 
 //no segmentation. no defragging
 /*
@@ -55,6 +60,12 @@ memData *findMMU();
 
 //returns the first position in memory that is unallocated and of the correct size
 void *lowestUnusedPosition(unsigned int size);
+
+//the same as the "old" inefficient way except that it starts at the last memory block and THEN checks every byte in memory. Hopefully this will improve speed
+void *lowestUnusedPositionStartingFromEndOfMemoryAllocation(unsigned int size, unsigned int startAddress);
+
+//returns the first position in memory that is unallocated and of the correct size the slow but non-buggy way
+void* lowestUnusedPositionOld(unsigned int size);
 
 void memFill(void *dst, char c, unsigned int len);
 

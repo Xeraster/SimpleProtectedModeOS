@@ -1,7 +1,7 @@
 OUTPUT_FORMAT("binary")
 SECTIONS
 {   
-    . = 0x7c00;
+    . = 0x100000;
     
     .bootloader : ALIGN(1K)
     {

@@ -1,5 +1,3 @@
-//I decided to start all over from scratch
-//i used liballloc instead of the shitty fucking dynarray allocator but liballoc doesn't seem to be able to handle itself when you throw this much shit and string operations at it
 //#pragma SECTION .kernel
 void _start(void);
 void _init_globals();
@@ -83,6 +81,7 @@ bool stringTest();
 
 //this also actually works for some reason both on emulators and real hardware
 #include <sys/io.h>
+#include <cstdint>
 #include "drivers/port_E9.h"
 
 //dynarrays are just a custom vector-like class
@@ -101,8 +100,7 @@ bool stringTest();
 
 //this is where the manually defined malloc, calloc, realloc, free and other things are
 //#include "memory.h"
-//does the same thing as memcpy. It trades speed for the advantage of being possibly less buggy and more reliable
-//just remember though, it isn't called slow memcpy for nothing
+//does the same thing as memcpy. It trades speed for the advantage of being possibly less buggy and more reliable. i'm not sure if there ever was a bug where using slow_memcpy ever fixed anything though.
 void *slow_memcpy(void *dst, const void *src, unsigned int len);
 
 //copy memory from 1 location in ram to another location in ram
@@ -112,12 +110,73 @@ void *memcpy(void *dst, const void *src, unsigned int len);
 //#include "liballoc/linux.c"
 #include "data types/rarray.h"
 #include "data types/string.h"
+#include "standard.h"			//std library equivalents
 //char *videoStart;
+
+//a basic date and time struct, for all your low-to-medium-effort date and time needs
+struct datetime
+{
+	char hours;
+	char minutes;
+	char seconds;
+	unsigned int year;		//years 0 - 4.2 billion. How's that for Y2038 compliance?
+	char month;
+	char day;
+};
+
+struct filesystemInfo
+{
+    //mbr stuff
+    char partitionType;             //0x06 = FAT16. 0x0B, 0x0C is FAT32
+    unsigned int numSectors;        //number of sectors in partition, for fat16 this number is only found in the mbr
+    unsigned int startingLBA;       //the LBA address of the start of the partition
+
+    //partition stuff
+    unsigned int sectorsPerFat;
+    short sectorsPerCluster;
+    unsigned int bytesPerSector;     
+    short reservedSectors;
+    short fsInfoSectorLocation;
+    unsigned int volumeSerialNumber;
+    char numFats;
+
+};
+
+struct fileInfo
+{
+    bool isDirectory;       //true if directory, false if a file
+    string fileName;
+    string fileExtension;
+    short clusterNumberLow;     //cluster number of file contents
+    short clusterNumberHigh;    //cluster number of file contents
+    unsigned int size;          //file size in bytes
+    bool isValidFile = true;    //this entry should be ignored if this is not set to true
+	datetime fileDateTime;		//can't remember if its date modified or date created, doesn't matter really
+
+	~fileInfo()
+	{
+		fileName.~string();
+		fileExtension.~string();
+	}
+};
+
+//use this to keep track of partitions that have been mounted
+struct dataVolumeInfo
+{
+	//string basicLabel;
+	//unsigned int baseLBA;		//LBA address of the root folder
+	filesystemInfo fsinfo;
+	bool mounted = false;
+	unsigned int currentDirectoryLBA;		//LBA of the parent directory. To "cd" to a new directory, set this number to the LBA of the contents of that file
+	
+};
+
 #include "screen.h"
 #include "utilities.h"
 
-//there's some annoying broken stuff I don't feel like fixing right now
-//#include "math/md5.cpp"
+#include "math/md5.cpp"		//md5 finally works
+#include "math/aes/aes.h"
+#include "math/aes/aesUtils.h" //utilities to make aes easier to interface with c++ os
 
 //uses the same scancode translation convention as my real mode system and my z80 system
 string scancodesXT_lowercase;
@@ -129,20 +188,25 @@ bool scrollLock;
 #include "drivers/pci.h"
 #include "drivers/ata.h"
 #include "drivers/vgadriver.h"
+#include "drivers/tgssDriver.h"
+#include "programs/paletteUtils.h"
+#include "programs/graphics.h"
+#include "programs/customerList/customerList.h"
 #include "commands/commands.h"
 
 //use this instead if there's ever a suspicion that memcpy causes crashes
-//just remember though, it isn't called slow memcpy for nothing
 void *slow_memcpy(void *dst, const void *src, unsigned int len)
 {
-    char *d = (char*)dst;
+    /*char *d = (char*)dst;
     char *s = (char*)src;
     for (int i = 0; i < len; i++)
     {
         d[i] = s[i];
     }
 
-    return dst;
+    return dst;*/
+	//ok, time to start caring about performance
+	return memcpy(dst,src,len);
 }
 
 //copy memory from 1 location in ram to another location in ram
@@ -191,7 +255,7 @@ void printStartup()
 	printString("Welcome to Scott's Protected Mode operating system", 0x0F);
 }
 
-//10-26-23: ok, it's time to refine the interface to be less of a glitchy mess and more of a usable command line interface. if you need code for the old command line loop, go get it from one of the broken backups or something as it went 2 years without ever changing so it should be easy enough to find
+//10-26-23: ok, it's time to refine the interface to be less of a glitchy mess and more of a usable command line interface. 02/28/2025: wow if this is the "new" system, I'd hate to see what the old system was like
 void _start(void)
 {
 	//forceIOPL_High();
@@ -211,6 +275,7 @@ void _start(void)
 	void *ptr1 = malloc(16);
 	void *ptr2 = malloc(4);
 	void *ptr3 = malloc(50);
+	//void *ptr4 = malloc(64);		//uncomment for the system to last longer before crashing. The C++ Bug business.
 	E9_printMemoryAt((void*)0x20000, 64);
 	intToE9(getIndexOfPointer(ptr1), false);
 	//memManagementTest(false, false, true);
@@ -251,6 +316,9 @@ void _start(void)
 	memoryInfo("null");		//insert the memory info command just because reasons
 	consoleNewLine(3);
 	string commandBuffer = "";
+	
+	populateVgaDefaultTextmode();
+	populateShittyAssVideoMode();
 
 	//start the program loop
 	while (3 == 3)
@@ -286,15 +354,15 @@ void _start(void)
 		int x, y;
 		cursorAdrToInts(&x, &y);
 		
-		//no more fucking screen spam
-		for (int i = 0; i < 20; i++)
+		//no more screen spam
+		/*for (int i = 0; i < 20; i++)
 		{
 			//print8bitNumber(*(char *)(commandBuffer.arrayAddress() + i), 240 + i);
 			//char charToPrint = *(char *)(commandBuffer.arrayAddress() + i);
 			char charToPrint = commandBuffer[i];
 			printCharAdr(charToPrint, 0x0F, 240+i);
 			// printInt(*(char *)(commandBuffer.arrayAddress() + i), 0x0F, true);
-		}
+		}*/
 
 		*(char*)0xB809A = 'C';
 		*(char*)0xB809B = 0x0D;
@@ -318,7 +386,7 @@ void _start(void)
 			{
 				consoleNewLine();
 				printString("Invalid command. Type 'help'", 0x0E);
-				consoleNewLine(3);
+				//consoleNewLine(3);
 				printMemInfo(true);
 			}
 			consoleNewLine();
@@ -374,7 +442,7 @@ bool memManagementTest(bool test1, bool test2, bool test3)
 	//if something is going to fail, it's probably going to fail here
 	if (test2)
 	{
-		//holy fucking shit this one is so slow
+		//wow this one is so slow
 		//now do it again using alternating sizes
 		//too lazy to set up a pseudorandom number
 		void* *ptrs2 = (void**)malloc(4121*sizeof(void*));//an array of pointers
