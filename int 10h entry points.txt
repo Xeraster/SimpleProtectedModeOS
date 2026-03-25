@@ -1,0 +1,2 @@
+qemu: F000:D43D
+pc: F000:9BFC

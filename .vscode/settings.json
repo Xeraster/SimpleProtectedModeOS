@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "charconv": "cpp",
+        "chrono": "cpp",
+        "optional": "cpp",
+        "format": "cpp",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "compare": "cpp",
+        "cstdint": "cpp",
+        "*.tcc": "cpp",
+        "initializer_list": "cpp",
+        "span": "cpp",
+        "variant": "cpp",
+        "unordered_map": "cpp",
+        "ostream": "cpp",
+        "iosfwd": "cpp"
+    }
+}

@@ -1,0 +1,1 @@
+sudo dd if=/dev/zero of=/dev/sde bs=512 count=3980592 conv=noerror
