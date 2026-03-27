@@ -1,11 +1,12 @@
 [BITS 32]
 [CPU 486]
+section .system_program
 extern begin
 ;offset 0x0. the beginning of the program
 call configure_entry_point	;might as well do it now
 jmp begin
 
-entryAddress dq 0x100000	;store the system call entry address in this byte here
+entryAddress dq 0x50000	;store the system call entry address in this byte here
 
 ;VERY IMPORTANT: run this in your userspace program FIRST before doing ANY SYSTEM CALLS
 global configure_entry_point

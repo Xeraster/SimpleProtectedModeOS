@@ -34,6 +34,8 @@ extern "C" void setupPS2Controller();
 
 extern "C" void configure_entry_point();
 
+extern "C" void call_program();
+
 const unsigned int KERNEL_VERSION_MAJOR = 1;
 const unsigned int KERNEL_VERSION_MINOR = 0;
 

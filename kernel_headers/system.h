@@ -1,3 +1,5 @@
+extern void main2();
+
 extern "C" void systemCall(unsigned int functionCode, void *data);
 
 extern "C" unsigned int kernelVersion()
@@ -18,4 +20,5 @@ extern "C" void helloworldtest()
 extern "C" void begin()
 {
 	//whatever
+	main2();
 }

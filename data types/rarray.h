@@ -145,27 +145,6 @@ public:
     //i don't think i'll end up finding a way to get this working
     void* operator new(unsigned int size)
     {
-
-        /**(char*)0xB8012 = 'N';
-	    *(char*)0xB8013 = 0x0E;
-        array = (T*)calloc(10, sizeof(T));
-        *(char*)0xB8014 = 'U';
-	    *(char*)0xB8015 = 0x0E;
-        count = 0;
-        maxSize = 10;
-        m_isMemoryTable = false;
-        m_init = true;*/
-
-        //return (T*)calloc(10, sizeof(T));
-        //void* ptr = (void)rarray<T>();
-        
-        //really ugly hack but there seems to be no other way
-        /*rarray<T> newArray = rarray<T>();
-        void *ptr = (T*)malloc(newArray.memSize());
-        memcpy(ptr, (void*)newArray, newArray.memSize()); //now thje rarray I created can be deleted*/
-
-        //there just isn't a way to do this is there
-    
         intToE9(size, false);
         asmOutb('p', 0xE9);
         asmOutb('P', 0xE9);

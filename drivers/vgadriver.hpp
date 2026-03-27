@@ -82,55 +82,7 @@ unsigned char readFromVGAPort(short portNum, unsigned int index)
 //writes seem to work, reads rarely work but they sometimes do
 char attributeRegisterRead(unsigned int index)
 {
-    /*asmOutb(0x00, 0x3D4);
-    asmOutb(index, VGA_ATTRIBUTE_WRITE);
-    char fuck = asmInb(VGA_ATTRIBUTE_READ);     //i saw this work one fucking time and it never worked again. I never changed the code
-    asmOutb(0x00, 0x3D4);
-    return fuck;*/
-    //asmOutb(0x00, 0x3D4);
-
-    /*
-    //i swear to fuck this worked one time, i stopped paying attention for 10 fucking minutes and now it isn't working anymore. FUCK
-    //from https://wiki.osdev.org/VGA_Hardware#Port_0x3C0:
-    //To read the contents, feed the index into port 0x3C0
-    asmOutb(index, 0x3C0);
-
-    //then read the value from 0x3C1
-    char pleaseWork = asmInb(0x3C1);    //"in" means read WHY THE FUCK IS IT CRASHING??? FUUUCK!!!
-
-    //then read 0x3DA as it is not defined whether the VGA expects a data byte or index byte next
-    //(those were the instructions on osdev, verbaitum)
-    asmOutb(0x00, 0x3D4);
-    return pleaseWork;*/
-
-    //that stuff was completely wrong. lets try this:
-    ///http://www.osdever.net/FreeVGA/vga/vgareg.htm
-    //1.Input a value from the Input Status #1 Register (normally port 3DAh) and discard it. 
-    /*asmInb(0x3DA);
-
-    //2. Read the value of the Address/Data Register and save it for step 7.     
-    char shit = asmInb(VGA_ATTRIBUTE_WRITE);
-
-    //3. Output the index of the desired Data Register to the Address/Data Register 
-    asmOutb(index, VGA_ATTRIBUTE_WRITE);
-
-    //4. Read the value of the Data Register and save it for later restoration upon termination, if needed. 
-    char data = asmInb(VGA_ATTRIBUTE_READ);
-
-    //5. If writing, modify the value read in step 4, making sure to mask off bits not being modified. (im not writing anything)
-    //6. If writing, write the new value from step 5 to the Address/Data register. (im not writing anything)
-
-    //7. Write the value of Address register saved in step 1 to the Address/Data Register. 
-    asmOutb(shit, VGA_ATTRIBUTE_WRITE);
-
-    //8. If you wish to leave the register waiting for an index, input a value from the Input Status #1 Register (normally port 3DAh) and discard it
-    asmInb(0x3DA);*/
-    //nope, didnt work either
-
-    //i swear to fuck this is the biggest load of fucking bullshit
-    //asmInb(0x3DA);
-
-    //DONT FUCKING TOUCH. DONT EVEN EDIT COMMENTS. DONT EVEN PUT YOUR CURSOR ANYWHERE NEAR THIS
+    //this isn't very reliable
     asmInb(0x3DA);
     asmOutb((char)index, VGA_ATTRIBUTE_WRITE);
     asmInb(0x3DA);
@@ -400,10 +352,10 @@ void printVgaModeInfo(char info)
 bool mode13hSetup()
 {
     //turn off and unlock stuff, idk
-    unsigned char poop = crtcRegisterRead(0x03);    //figure out if the user has to poop or not
-    crtcRegisterWrite(0x03, (poop | 0x80));         //if the user has to poop, tell them where the nearest bathroom is
+    unsigned char poop = crtcRegisterRead(0x03);
+    crtcRegisterWrite(0x03, (poop | 0x80));
     poop = crtcRegisterRead(0x11);
-    crtcRegisterWrite(0x11, (poop & ~0x80));        //if there is no bathroom available, open a shopping link for adult diapers in the browser
+    crtcRegisterWrite(0x11, (poop & ~0x80));
 
     //get all the attribute registers set to what osdev says they're supposed to be set to
     /*attributeRegisterWrite(0x10, 0x41);

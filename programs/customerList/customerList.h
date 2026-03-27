@@ -10,31 +10,6 @@
 
 int customerListInit()
 {
-	/*std::time_t t = std::time(0);
-	std::tm* now = std::localtime(&t);
-	std::cout << (now->tm_year + 1900) << '-' << (now->tm_mon + 1) << '-'<<  now->tm_mday << endl;
-
-	cout << "creating linkedList" << endl;
-	linkedList listTest;
-	cout << "inserting node" << endl;
-	listTest.insertNode("test1");
-	cout << "inserting another node" << endl;
-	listTest.insertNode("test2");
-	listTest.insertNode("test3");
-	listTest.insertNode("test4");
-	listTest.insertNode("test5");
-	listTest.insertNode("test6");
-	listTest.listAll();
-	listTest.deleteNode("test1");
-	listTest.deleteNode("test2");
-	listTest.deleteNode("test3");
-	listTest.deleteNode("test4");
-	//listTest.deleteNode("test5");
-	listTest.deleteNode("test6");
-	cout << "after delete:" << endl;
-	listTest.listAll();
-	cout << "done" << endl;*/
-
 	string customerName;
 	string service;
 	linkedList customerList;

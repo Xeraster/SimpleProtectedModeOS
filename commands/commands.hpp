@@ -325,11 +325,9 @@ bool parseCommand(string input)
         findVesaCommand(input);
         return true;
     }
-
-    //school assigment, I needed leverage of some kind so I attempted to impress my professor by showing my program is "so efficient" and "bigly" that it can run on a 486
     else if (input == "customerListTest")
     {
-        //hahaha no
+        //a test to run the linked list
         consoleNewLine();
         customerListInit();
         consoleNewLine();
@@ -837,7 +835,41 @@ bool parseCommand(string input)
     }
     else if (input.substr(0, 4) == "run ")
     {
-        printString("ok", 0x0F);
+        rarray<string> runparms = rarray<string>();
+        split(input, ' ', &runparms);
+        printString("input size = ", 0x0F);
+        printInt(runparms.getSize(), 0x0F);
+        consoleNewLine();
+        /*for (int i = 0; i < runparms.getSize(); i++)
+        {
+            printString(runparms.at(i), 0x0F);
+            consoleNewLine();
+        }*/
+       //printString(input.substr(4, input.length()), 0x0F);
+        if (runparms.getSize() > 1)
+        {
+            //loadFile()
+            printString("loading ", 0x0F);
+            printString(runparms.at(1), 0x0F);
+            fileInfo programFile = getFileByName(selectedVolume.currentDirectoryLBA, MBR_DRIVE_MODE, &selectedVolume.fsinfo, runparms.at(1));
+            if (programFile.isValidFile)
+            {
+                printString("file exists", 0x0F);
+                //load the file into ram at some position
+                void *data = loadFile(&programFile, 0, &selectedVolume.fsinfo);
+                memcpy((void*)0x50000, data, 0x1000);
+                call_program();
+            }
+            else
+            {
+                printString("file error", 0x0F);
+            }
+        }
+        else
+        {
+            printString("error", 0x0F);
+        }
+
         return true;
     }
 

@@ -416,24 +416,6 @@ unsigned int lengthOfCharArray(const char* array)
 //rarray<string> split(string input, char delimiter)
 void split(string input, char delimiter, rarray<string> *splitsSoFar)
 {
-    //never going to happen. You can't have the new operator in a non mac/linux/windows system even if you have a working memory manager.
-    //rarray<string> splitsSoFar = rarray<string>();
-    //asmOutb('\n', 0xE9);
-    //splitsSoFar->clear();   //the closest to working I could get the "new" operator was a really dumb hack that chatgpt shat out
-    //intToE9((unsigned int)splitsSoFar, false);
-    //asmOutb('\n', 0xE9);
-    //__asm__("hlt");
-    /*if (!allocationExists(splitsSoFar))
-    {
-        asmOutb('e', 0xE9);
-        asmOutb('r', 0xE9);
-        asmOutb('r', 0xE9);
-        asmOutb('o', 0xE9);
-        asmOutb('r', 0xE9);
-    }
-    asmOutb('y', 0xE9);
-    asmOutb('a', 0xE9);
-    asmOutb('y', 0xE9);*/
     splitsSoFar->clear();
     string soFar = "";
     for(int i = 0; i < input.length(); i++)
@@ -449,6 +431,12 @@ void split(string input, char delimiter, rarray<string> *splitsSoFar)
             soFar = "";
             //soFar.manual_clear();
         }
+    }
+
+    //i guess this fixes a bug. split is only used like 5 times and 4 of them arent affected by this bug so I THINK this is the right thing to do
+    if (!(soFar == ""))
+    {
+        splitsSoFar->push_back(soFar);
     }
 
     //now copy the string to a char array pointer.. oh wait that won't work. I mean it kinda would but preventing memory leaks while doing it this way would be really hard probably

@@ -45,3 +45,8 @@ system_call_test:
     ;jmp system_call_entry
     ;leave
 ret
+
+global call_program
+call_program:
+    jmp 0x50000
+ret

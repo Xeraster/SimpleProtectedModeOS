@@ -69,7 +69,7 @@ public:
     bool find(T thingToFind, unsigned int* index);
 
     unsigned int getSize() const { return count; }
-    unsigned int getSize_noconst() { return count; }    //in certain situations, returning a const value here crashes the program when running on physical systems but not on emulators
+    unsigned int getSize_noconst() { return count; }   //i dont know if this changes anything or not
     unsigned int max_size() const { return maxSize; }
     T* getAddress() const { return array; }
     bool is_init() const { return m_init; }
@@ -80,7 +80,7 @@ public:
     T& at(unsigned int index) const { return array[index]; }
     T& at_noconst(int index) { return array[index]; }
 
-    //wow, the entire system relies on this being set up in a broken way. update 02/28/2025: that comment was referencing something from several releases ago and is no longer relevant
+    //wow, the entire system relies on this being set up in a broken way. update 02/28/2025: that comment was referencing something a long time ago and is no longer relevant
     dynarray<T>& operator=(const dynarray<T>& other)
     {
         //the system won't even run without this block of code but this block of code is stupid and wrong
