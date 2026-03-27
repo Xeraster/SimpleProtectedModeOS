@@ -1,6 +1,8 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
+extern "C" void system_call_test(unsigned int functionCode, void *data);
+
 //deals with processing commands. Returns true if inputted thing was a valid command. Returns false if inputted command was something un-runnable
 bool parseCommand(string input);
 

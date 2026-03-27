@@ -3,7 +3,7 @@ void _start(void);
 void _init_globals();
 
 //0 = vga. 1 = v9958. 2 = tgss
-const int videoType = 0;
+int videoType = 0;
 unsigned int tgss_cur_x = 0;//global tgss x cursor position until I make a better system for this
 unsigned int tgss_cur_y = 0;//global tgss y cursor position until I make a better system for this
 //convert font data to the correct format for the current bit depth and video mode and then draw it to the screen. This is the one that should be used for TGSS
@@ -32,6 +32,11 @@ extern "C" short asmInW(short port);
 
 extern "C" void setupPS2Controller();
 
+extern "C" void configure_entry_point();
+
+const unsigned int KERNEL_VERSION_MAJOR = 1;
+const unsigned int KERNEL_VERSION_MINOR = 0;
+
 void begin()
 {
 	if (videoType == 0)
@@ -40,6 +45,14 @@ void begin()
 		*(char*)0xB8004 = 'P';
 		*(char*)0xB8005 = 0x0E;
 	}
+
+	//update bios data rea hardware information
+	unsigned char bdadata = *(unsigned char*)0x30D0;
+	unsigned int video = (bdadata & 0x03);
+	videoType = video;//there. video driver gets figured out automatically now
+
+	//configure the system call enry point based on what BDA byte 0x30D0 bit 6 says about the system call entry point
+	configure_entry_point();
 
 	//initialize globals since that doesn't happen automatically
 	//it *used* to not happen automatically. I still use this for initializing memory management and miscellaneous things though
@@ -99,8 +112,6 @@ bool rarrayTest(bool test1 = true, bool test2 = true);
 
 //the ultimate testament of stability
 bool stringTest();
-
-//#include <cmath> //apparently this is required for u_int8_t and shockingly, it actually works
 
 //this also actually works for some reason both on emulators and real hardware
 #include <sys/io.h>
@@ -279,7 +290,6 @@ void printStartup()
 	printString("Welcome to Scott's Protected Mode operating system", 0x0F);
 }
 
-//10-26-23: ok, it's time to refine the interface to be less of a glitchy mess and more of a usable command line interface. 02/28/2025: wow if this is the "new" system, I'd hate to see what the old system was like
 void _start(void)
 {
 	//forceIOPL_High();
@@ -307,40 +317,11 @@ void _start(void)
 		//the only way this happens if on the special diy system. the keyboard controller wont have been turned on yet
 		setupPS2Controller();
 	}
-	//void *ptr4 = malloc(64);		//uncomment for the system to last longer before crashing. The C++ Bug business.
-	//E9_printMemoryAt((void*)0x20000, 64);
-	//intToE9(getIndexOfPointer(ptr1), false);
-	//memManagementTest(false, false, true);
-	//rarrayTest();
-	//intToE9(currentSize, false);
-	//rarray<char> fuck = rarray<char>();
-	//fuck.push_back('4');
-	//fuck.push_back('5');
-	//string poop = "poop";
-	//printString(poop, 0x0F);
-	//printString("..", 0x0D);
-	//printString(poop, 0x0E);
 	
 	//there is no memory stability torture test more difficult than setting up the stupidass scancode map.
 	setupScancodeMap();
 	asmOutb(0x00, 0xE9);
-	//stringTest();
-	/*E9_printMemoryAt((void*)mmt, 64);
-	*(char*)0xB800C = 'D';
-	*(char*)0xB800D = 0x0D;
-	asmOutb('\n', 0xE9);
-	intToE9(getMaxSizeMMT(), false);
-	asmOutb('\n', 0xE9);
-	intToE9(findMMU()->m_start, false);
-	asmOutb('\n', 0xE9);
-	intToE9(findMMU()->m_end, false);
-	asmOutb('\n', 0xE9);
-	intToE9(currentSize, false);
-	asmOutb('\n', 0xE9);
-	asmOutW(0x3030, 0xE9);*/
 
-	//printString("..325r2urff2ff22ff2f.", 0x0D);
-	//printString(yahuh, 0x0F);
 	//clear the screen. some/most (sample size 2) bioses don't clear the screen before booting
 	clearScreen(3);
 	consoleNewLine(3);
@@ -397,7 +378,6 @@ void _start(void)
 		}
 		else if (last == 0x08)
 		{
-			//doesn't work right now
 			//commandBuffer = commandBuffer.substr(0, commandBuffer.length() - 2);
 			commandBuffer.pop();
 			// commandBuffer += char(0);
@@ -411,28 +391,11 @@ void _start(void)
 
 		int x, y;
 		cursorAdrToInts(&x, &y);
-		
-		//no more screen spam
-		/*for (int i = 0; i < 20; i++)
-		{
-			//print8bitNumber(*(char *)(commandBuffer.arrayAddress() + i), 240 + i);
-			//char charToPrint = *(char *)(commandBuffer.arrayAddress() + i);
-			char charToPrint = commandBuffer[i];
-			printCharAdr(charToPrint, 0x0F, 240+i);
-			// printInt(*(char *)(commandBuffer.arrayAddress() + i), 0x0F, true);
-		}*/
-
-		//*(char*)0xB809A = 'C';
-		//*(char*)0xB809B = 0x0D;
-		//print8bitNumber(commandBuffer.containerSize(), 62);
 
 		setCurPos(x,y);
 
 		//printString(commandBuffer, 0x05, 500);
 		//print32bitNumber(commandBuffer.arrayAddress(), 580);
-
-		//*(char*)0xB809A = 'R';
-		//*(char*)0xB809B = 0x0D;
 
 		//if user pressed enter key
 		if (last == 10)
@@ -638,10 +601,42 @@ bool stringTest()
 	return true;
 }
 
-/*this is how to make a c++ function accessible in assembly without hacking the c++ name mangling system.
-This will be useful later because it enables the possibility of making "kernel headers" for external programs to use
+/*system calls from assembly that were called from outside programs
 */
-extern "C" void testAsmFunc()
+extern "C" void system_call_entry(unsigned int functionCode, void *data)
 {
-
+	if (functionCode == 0x00)//Get major kernel version
+	{
+		*(unsigned int*)data = KERNEL_VERSION_MAJOR;
+		return;
+	}
+	else if (functionCode == 0x0001)//get minoir kernel version
+	{
+		*(unsigned int*)data = KERNEL_VERSION_MINOR;
+		return;
+	}
+	else if (functionCode == 0x0002)//print the "it worked" message
+	{
+		printString("it worked!", 0x0F);
+	}
+	else if (functionCode == 0x0003)//print address of systemCall *data parameter
+	{
+		printString("data address = ", 0x0F);
+		printInt((unsigned int)data, 0x0E);
+	}
+	else if (functionCode == 0x0004)//print a string
+	{
+		struct test
+        {
+            string str;
+            short color;
+        };
+		test ccc = *(test*)data;
+		printString(ccc.str, ccc.color);
+	}
+	else
+	{
+		printString("parameter corrupted = ", 0x0F);
+		printInt(functionCode, 0x0E);
+	}
 }

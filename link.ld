@@ -7,6 +7,12 @@ SECTIONS
     {
         *(.bootloader .bootloader*)
     }
+
+    .system_api : ALIGN(1K)
+    {
+    	system_api.o(.system_api)
+    	*(.system_api .system_api.*)
+    }
     
     .auxFunctions : ALIGN(1K)
     {

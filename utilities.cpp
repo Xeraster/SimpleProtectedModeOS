@@ -65,7 +65,6 @@ void print8bitNumber(unsigned int num, unsigned int curPos)
 void print16bitNumber(unsigned int num, unsigned int curPos)
 {
 
-	// yes, there are more "better" ways to do this but at the time of this writing, I have no memory management system in place for dynamically declaring array sizes on the fly. These functions are to allow me to debug stuff until I get a better system working
 	char printableResult[5]; // designate 5 spaces for the maximum sized 16 bit integer
 
 	printableResult[0] = (num % 10) + 48; // least significant digit
@@ -536,7 +535,7 @@ int getCpuVendor()
 
 void printMemoryManagement()
 {
-	// fucking strings fuckity fuck fuck
+	//if there are problems with strings, it usually crashes here
 	printString("Total used memory is ", 0x0F);
 	printInt(totalUsedMemory(), 0x0E);
 	printString(" out of ", 0x0F);

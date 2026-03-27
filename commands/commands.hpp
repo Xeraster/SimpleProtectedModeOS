@@ -759,6 +759,87 @@ bool parseCommand(string input)
         fpgaStringSpamCommand();
         return true;
     }
+    else if (input == "systemcalltest")
+    {
+        consoleNewLine();
+        unsigned int u1;
+        unsigned int u2;
+        system_call_test(0, &u1);
+        system_call_test(1, &u2);
+        printString("returned value is ", 0x0F);
+        printInt(u1, 0x0E);
+        printString(".", 0x0E);
+        printInt(u2, 0x0E);
+
+        struct test
+        {
+            string str;
+            short color;
+        };
+        test ccc;
+        ccc.str = "hello, world!";
+        ccc.color = 0x0D;
+        system_call_test(4, &ccc);
+        return true;
+    }
+    else if (input == "BDAinfo")//get information about the BDA
+    {
+        consoleNewLine(3);
+        unsigned char bdadata = *(unsigned char*)0x30D0;
+        unsigned int timer = (bdadata >> 5) & 0x01;
+        unsigned int entry = (bdadata >> 6) & 0x01;
+        unsigned int keyboard = (bdadata >> 7) & 0x01;
+        unsigned int video = (bdadata & 0x03);
+        printString("timer = ", 0x0F);
+        printInt(timer, 0x0E);
+        printString(" entry = ", 0x0F);
+        printInt(entry, 0x0E);
+        printString(" keyboard = ", 0x0F);
+        printInt(keyboard, 0x0E);
+        printChar(' ', 0x00);
+        printInt(bdadata, 0x0F, true);
+        consoleNewLine();
+        printVideoDriverInfo(video, false);
+
+        consoleNewLine();
+        printString("timer type: ", 0x0F);
+        if (timer == 0)
+        {
+            printString("IBM-PC 8224 PIT",0x0E);
+        }
+        else
+        {
+            printString("ice40 microsecond timer",0x0E);
+        }
+        consoleNewLine();
+        printString("system entry point: ", 0x0F);
+        if (entry == 0)
+        {
+            printInt(0x10000, 0x0E, true);
+            printChar('h', 0x0E);
+        }
+        else
+        {
+            printInt(0x100000, 0x0E, true);
+            printChar('h', 0x0E);
+        }
+        consoleNewLine();
+        printString("keyboard setup: ", 0x0F);
+        if (keyboard == 0)
+        {
+            printString("port 60h and 64h",0x0E);
+        }
+        else
+        {
+            printString("port 61h and 64h",0x0E);
+        }
+        return true;
+    }
+    else if (input.substr(0, 4) == "run ")
+    {
+        printString("ok", 0x0F);
+        return true;
+    }
 
 
     //reprint whatever the user typed. If memory allocation is broken even slightly, this will very obviously be wrong which makes it a great tool for troubleshooting
@@ -2367,7 +2448,7 @@ bool fpgaStringSpamCommand()
     //{
         // make sure the gpu is only written to when its ready
         unsigned char status = inb(0x426);
-        unsigned char full = status & 0x70; // we're only concerned about bits 6, 5 and 4
+        unsigned char full = status & 0x70; // only concerned about bits 6, 5 and 4
 
         unsigned int ys = 0;
         unsigned int xs = 0;

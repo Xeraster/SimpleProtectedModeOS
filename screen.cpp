@@ -106,8 +106,6 @@ void printString(string text, short color)
 //prints an int to the screen
 void printInt(unsigned int number, short color, bool hex)
 {
-	//all the ducks aren't perfectly aligned, bug this should eliminate that rare base 10 bug
-	//char printableResult[10]; //designate 5 spaces for the maximum sized 16 bit integer
 	char *printableResult = (char*)malloc(sizeof(char) * 40);	//make a bigger array than we need to circumvent the base 10 bugs. just remember to free when done with it
 	for (int i = 0; i < 40; i++)
 	{
